@@ -17,6 +17,16 @@ The structure of the directories is the following:
 Please refer to each `ReadMe.md` file in each folder.
 
 
+# Vault
+
+You will need credentials to use NSDF accounts:
+
+```
+git clone git@github.com:nsdf-fabric/vault.git ~/.nsdf/vault
+# assuming you will have a ` ~/.nsdf/vault/vault.yaml` that will be used by the nsdf.kernel module (see function `NormalizeEnv`)
+```
+
+
 # Security checks before any commit
 
 ```
