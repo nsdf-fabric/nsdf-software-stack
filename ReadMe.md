@@ -17,13 +17,10 @@ The structure of the directories is the following:
 Please refer to each `ReadMe.md` file in each folder.
 
 
-# Security checks before (!) commit
+# Security checks before any commit
 
 ```
-# trufflehog v2
-sudo docker run --rm -v "$PWD:/pwd" dxa4481/trufflehog file:///pwd
-
-# trufflehog v3
+# trufflehog
 sudo docker run -it -v "$PWD:/pwd"  trufflesecurity/trufflehog:latest filesystem --directory=/pwd
 
 # gitleaks
@@ -32,7 +29,4 @@ sudo docker run -v $PWD:/pwd zricethezav/gitleaks:latest detect -v --source="/pw
 # git secrets `(`git clone https://github.com/awslabs/git-secrets && sudo make install`
 git secrets --scan -r
 git secrets --scan-history 
-
-
-
 ```
