@@ -46,7 +46,7 @@ On Linux/MacOs
 sudo apt-get update
 
 python3 -m pip install --upgrade awscli
-source $(python3 -m nsdf.vault export-env s3-tamu)
+source $(python3 -m nsdf export-env s3-tamu)
 export BUCKET=nsdf-tamu
 
 aws configure set default.s3.max_concurrent_requests 300

@@ -465,7 +465,7 @@ if __name__=="__main__":
 
 	# enviroment from the workflow
 	if True:
-		from nsdf.vault import NormalizeEnv, PrintEnv, SetEnv
+		from nsdf.kernel import NormalizeEnv, PrintEnv, SetEnv
 		env=NormalizeEnv(workflow["env"])
 		if "export-env" in sys.argv:
 			PrintEnv(env)
