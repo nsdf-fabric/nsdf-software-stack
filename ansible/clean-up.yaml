@@ -1,0 +1,25 @@
+---
+- name: Clean
+  become: no
+  hosts: all
+  gather_facts: no
+  tasks:
+  - name: Clean Up
+    args:
+      executable: /bin/bash
+    shell: |
+      # set -e 
+      exec 2>&1 # Redirect standard error to standard out
+      
+      # kill all DASK processes
+      ps aux | grep -v grep | grep "python3 -m distributed" | awk '{print $2}' | xargs kill -9"
+      ps aux | grep -v grep | grep "python  -m distributed" | awk '{print $2}' | xargs kill -9"
+
+
+      # create the directory and clean it
+      mkdir -p  {{ local }}
+      for I in 1 2 3 4 5; do
+        rm -Rf {{ local }}/*
+        sleep 1
+      done
+      echo "ALL DONE"

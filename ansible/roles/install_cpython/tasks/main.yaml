@@ -1,0 +1,163 @@
+
+
+---
+  
+
+# ////////////////////////////////////////////////
+- name: Setup OS
+  become: yes
+  args:
+    creates: ~/.ansible.setup_os.done
+    executable: /bin/bash
+  shell: |
+    # stop on errors
+    set -e
+    
+    # Redirect standard error to standard out
+    exec 2>&1
+
+    # enable ssh password authentication just in case
+    sed -i "/^[^#]*PasswordAuthentication[[:space:]]no/c\PasswordAuthentication yes" /etc/ssh/sshd_config
+
+    # allow TCP forwarding (needed for vscode)
+    sed -i "s/^#AllowTcpForwarding yes/AllowTcpForwarding yes/g" /etc/ssh/sshd_config
+
+    systemctl restart ssh.service
+     
+    # disable firewall just in case
+    ufw disable || true
+
+    # solve a problem with nvidia drivers
+    apt-key del 7fa2af80 || true
+    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/$(uname -m)/3bf863cc.pub || true
+
+    apt update
+
+    # very minimal packages
+    apt install -y curl git wget vim nano cmake swig less bzip2 zip unzip pkg-config  sshpass awscli pigz
+
+    # setup number of connections
+    aws configure set default.s3.max_concurrent_requests 64
+
+    # to produce diagrams
+    apt-get install -y graphviz
+
+    # install cpython
+    apt install -y python3 python3-pip
+    python3 -m pip install --upgrade pip
+
+    touch ~/.ansible.setup_os.done
+
+
+# ////////////////////////////////////////////////
+- name: Copy id_nsda to id_rsa 
+  become: no
+  copy:
+    src: "{{ansible_ssh_private_key_file}}"
+    dest: "~/.ssh/id_rsa"
+    mode: '0700'
+
+# ////////////////////////////////////////////////
+# ////////////////////////////////////////////////
+- name: Ensures ~/.nsdf/vault dir exists
+  file: path=~/.nsdf/vault state=directory
+
+- name: Copy id_nsda to vault directory 
+  become: no
+  copy:
+    src: "{{ansible_ssh_private_key_file}}"
+    dest: "~/.nsdf/vault/id_nsdf"
+    mode: '0700'
+
+# ////////////////////////////////////////////////
+- name: Install cpython wheels
+  become: no
+  pip:
+    extra_args: --user
+    name: 
+      - pyyaml 
+      - requests 
+      - urllib3 
+      - asyncssh 
+      - pendulum
+      - cryptography
+      - awscli 
+      - boto3
+      - distributed
+      - dask[complete] 
+      - prefect[viz]  
+      - BeautifulSoup4
+      - imageio
+      - OpenVisusNoGui
+      - scikit-image
+      # in general these are not needed
+      # - pandas
+      # - s3fs
+      # - python-chi               (this is needed for nsdf-cloudChameleon CLoud)
+      # - vultr                    (this is needed for nsdf-cloud/vultr)
+      # - materials-commons-api    (this is needed for nsdf-catalog)
+      # - mysql-connector-python   (this is needed for nsdf-catalog)  
+      # - mdf_forge                (this is needed for nsdf-catalog)
+
+
+# ////////////////////////////////////////////////
+- name: Fix python
+  become: yes
+  args:
+    executable: /bin/bash
+    creates: ~/.ansible.fix-python.done
+  shell: |
+    python3 -m pip install --upgrade -y urllib3 requests awscli
+    python3 -m pip install --upgrade -y cryptography
+    python3 -m pip install --upgrade -y ansible
+    touch ~/.ansible.fix-python.done
+
+# ////////////////////////////////////////////////
+- name: Fix python 2
+  become: yes
+  args:
+    executable: /bin/bash
+    creates: ~/.ansible.fix-python.2.done
+  shell: |
+    python3 -m pip install --upgrade awscli
+    touch ~/.ansible.fix-python.2.done
+
+# ////////////////////////////////////////////////
+- name: install s5cmd
+  become: no
+  args:
+    executable: /bin/bash
+    creates:  ~/.ansible.s5cmd.done
+  shell: |
+    set -e # stop on errors
+    exec 2>&1 # Redirect standard error to standard out
+    sudo apt install -y golang-go
+    go get -u github.com/peakgames/s5cmd
+    touch ~/.ansible.s5cmd.done
+
+
+# ////////////////////////////////////////////////
+- name: Copy bashrc.conf
+  become: no
+  copy:
+    src: "bashrc.conf"
+    dest: "~/bashrc.conf"
+    mode: '0700'
+
+# ////////////////////////////////////////////////
+- name: Final setup
+  become: no
+  args:
+    executable: /bin/bash
+    creates:~/nsdf-software-stack
+  shell: |
+    set -e # stop on errors
+    exec 2>&1 # Redirect standard error to standard out
+
+    echo 'source ~/bashrc.conf' >> ~/.bashrc 
+
+    # setup git credentials *change as needed (TODO: make it better with variables)
+    git config --global user.name "Giorgio Scorzelli"
+    git config --global user.email "scrgiorgio@gmail.com"
+
+    GIT_SSH_COMMAND="ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa" git clone {{ git-hub-repository }} ./nsdf-software-stack

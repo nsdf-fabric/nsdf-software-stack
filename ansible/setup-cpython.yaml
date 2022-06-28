@@ -1,0 +1,10 @@
+---
+- hosts: all
+  environment:
+    LC_ALL: C
+    LANG: C
+  gather_facts: no
+  roles:
+  - install_cpython
+  vars:
+    - github-repository: git@github.com:nsdf-fabric/nsdf-pania.git

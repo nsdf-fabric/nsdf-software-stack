@@ -1,0 +1,160 @@
+---
+
+# ////////////////////////////////////////////////
+- name: OS setup
+  become: yes
+  args:
+    creates: ~/.ansible.os_setup.done
+    executable: /bin/bash
+  shell: |
+    # enable ssh password authentication just in case
+    sed -i "/^[^#]*PasswordAuthentication[[:space:]]no/c\PasswordAuthentication yes" /etc/ssh/sshd_config
+
+    # allow TCP forwarding (needed for vscode)
+    sed -i "s/^#AllowTcpForwarding yes/AllowTcpForwarding yes/g" /etc/ssh/sshd_config
+
+    systemctl restart ssh.service
+     
+    # disable firewall just in case
+    ufw disable || true
+
+    # solve a problem with nvidia drivers
+    apt-key del 7fa2af80 || true
+    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/$(uname -m)/3bf863cc.pub || true
+
+    apt update
+
+    # very minimal packages
+    apt install -y curl git wget vim nano cmake swig less bzip2 zip unzip pkg-config  sshpass awscli
+
+    # setup number of connections
+    aws configure set default.s3.max_concurrent_requests 64
+
+    touch ~/.ansible.os_setup.done
+
+# ////////////////////////////////////////////////
+- name: Copy id_nsda to id_rsa 
+  become: no
+  copy:
+    src: "{{ansible_ssh_private_key_file}}"
+    dest: "~/.ssh/id_rsa"
+    mode: '0700'
+
+# ////////////////////////////////////////////////
+- name: Ensures ~/.nsdf/vault dir exists
+  file: path=~/.nsdf/vault state=directory
+
+- name: Copy id_nsda to id_rsa 
+  become: no
+  copy:
+    src: "{{ansible_ssh_private_key_file}}"
+    dest: "~/.nsdf/vault/id_nsdf"
+    mode: '0700'
+
+# ////////////////////////////////////////////////
+- name: Install miniforge3
+  become: no
+  args:
+    creates: ~/.ansible.miniconda.installed
+    executable: /bin/bash
+  shell: |
+    set -e # stop on errors
+    exec 2>&1 # Redirect standard error to standard out
+
+    # I am using miniforge here (anaconda or miniconda are TOO slow!)
+    wget --quiet https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-$(uname -m).sh  -O install-miniforge3.sh
+    
+    # remove any old installation
+    rm -Rf ~/miniconda3 || true
+    
+    # install miniforge3
+    # -b means in batch mode, -p setup the prefix
+    echo "# Installing conda"
+    bash ./install-miniforge3.sh  -b -p ~/miniconda3 1>/dev/null
+    
+    # enable in the current shell
+    export PATH=$PATH:~/miniconda3/bin
+    echo "conda-path=$(which conda)"
+    
+    # this will not work in ansible that uses a non-inteactive bash-shell 
+    # (i.e. .bashrc is not evaluated, if you see inside bashrc there is a return at the beginning since it is not an interactive shell) but it is s useful if you ssh
+    echo "# Init conda"
+    conda init bash  1>/dev/null
+    source ~/.bashrc  
+
+    echo "# Eval hook"
+    eval $(conda shell.bash hook)
+    
+    echo "# Creating env"
+    conda create --quiet -y -n mypython python=3.8 mamba 1>/dev/null
+
+    # do not use .local to avoid conflicts with cpython
+    conda env config vars set PYTHONNOUSERSITE=1 -n mypython
+  
+    echo "# ***********Activating conda"
+    source ~/miniconda3/etc/profile.d/conda.sh
+    conda activate mypython
+
+    echo "# ***********Installing packages"
+    mamba install --quiet -y -c conda-forge          numpy ansible numexpr boto3  asyncssh tifffile imageio h5py 
+    mamba install --quiet -y -c conda-forge          dask=2022.3 dask-cuda=22.4.0 prefect
+    mamba install --quiet -y -c conda-forge          tensorflow=2.7.1=cuda112*  tensorflow-gpu=2.7.1=cuda112* cudatoolkit=11.2
+    mamba install --quiet -y -c visus                openvisusnogui
+    mamba install --quiet -y -c conda-forge          dxchange  tomopy astropy
+    mamba install --quiet -y -c astra-toolbox        astra-toolbox
+    mamba install --quiet -y -c ccpi -c conda-forge  ccpi-framework ccpi-regulariser
+
+    # this is needed only for vscode
+    # mamba install --quiet -y -c conda-forge jupyter ipykernel voila bokeh
+    
+    # ptxas tool (but this way is too old)
+    # sudo apt install -y nvidia-cuda-toolkit
+    
+    echo "miniconda installation done"
+    touch ~/.ansible.miniconda.installed
+    
+  register: out
+- debug: var=out.stdout_lines
+
+# ////////////////////////////////////////////////
+- name: install s5cmd
+  become: no
+  args:
+    executable: /bin/bash
+    creates:  ~/.ansible.s5cmd.done
+  shell: |
+    set -e # stop on errors
+    exec 2>&1 # Redirect standard error to standard out
+    sudo apt install -y golang-go
+    go get -u github.com/peakgames/s5cmd
+    touch ~/.ansible.s5cmd.done
+
+
+# ////////////////////////////////////////////////
+- name: Copy bashrc.conf
+  become: no
+  copy:
+    src: "bashrc.conf"
+    dest: "~/bashrc.conf"
+    mode: '0700'
+
+# ////////////////////////////////////////////////
+- name: Final setup 
+  become: no
+  args:
+    executable: /bin/bash
+    creates: ~/nsdf-software-stack
+  shell: |
+    set -e # stop on errors
+    exec 2>&1 # Redirect standard error to standard out
+
+    echo 'source ~/bashrc.conf' >> ~/.bashrc 
+
+    # setup git credentials *change as needed (TODO: make it better with variables)
+    git config --global user.name "Giorgio Scorzelli"
+    git config --global user.email "scrgiorgio@gmail.com"
+
+    GIT_SSH_COMMAND="ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa" git clone {{ git-hub-repository }} ~/nsdf-software-stack
+    
+
+

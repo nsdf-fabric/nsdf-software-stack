@@ -1,0 +1,11 @@
+---
+- hosts: all
+  environment:
+    LC_ALL: C
+    LANG: C
+    # CONDA_VERBOSITY: 2 # uncomment for verbose conda
+  gather_facts: no
+  roles:
+  - install_conda
+  vars:
+    - github-repository: git@github.com:nsdf-fabric/nsdf-pania.git

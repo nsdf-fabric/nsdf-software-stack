@@ -1,0 +1,10 @@
+---
+- name: Sync Code
+  become: no
+  hosts: all
+  gather_facts: no
+  tasks:
+  - name: Sync Code
+    synchronize:
+      src: "{{ src }}"
+      dest: "{{ dst }}"

@@ -1,0 +1,322 @@
+
+# all the environment variables that will be used by the workflow and eventually passed to DASK workers
+env:
+
+  include-vault: 
+  - s3-wasabi
+
+  # where to store local files
+  LOCAL: /tmp/Pania_2021Q3_in_situ_data
+
+  # remote address where to store results
+  REMOTE: s3://Pania_2021Q3_in_situ_data
+
+# if you want to run task on a dask cluster
+dask:
+  enabled: True
+  inventory: ~/inventory.ini
+  group: all
+  num-process-per-host: 1
+  worker-local-dir: /tmp/nsdf/dask-workers
+
+# what task to execute (preprocess | convert)
+task: convert
+
+# to limit files and slices
+file-range:  0 -1 1
+slice-range: 0 -1 1
+
+# disable some part of the workflow
+disable-reconstruction: False
+disable-segmentation: False
+
+# openvisus convert part
+convert:
+  arco: 16mb
+  keep-local-image-stack: False
+  keep-local-idx: False
+
+# list of files to preprocess or convert
+files:
+
+  # ////////////////////////////////////////////////////////////// 1
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112509.h5
+  tot-slices: 2160
+  rotation-center: 1270
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112512.h5
+  tot-slices: 2160
+  rotation-center: 1273
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112515.h5
+  tot-slices: 2160
+  rotation-center: 1271.50
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112517.h5
+  tot-slices: 2160
+  rotation-center: 1265
+  reconstruction-version: 1
+  
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112520.h5
+  tot-slices: 2160
+  rotation-center: 1266.50
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112522.h5
+  tot-slices: 2160
+  rotation-center: 1266.50
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112524.h5
+  tot-slices: 2160
+  rotation-center: 1274
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112526.h5
+  tot-slices: 2160
+  rotation-center: 1267.50
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112528.h5
+  tot-slices: 2160
+  rotation-center: 1271
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112530.h5
+  tot-slices: 2160
+  rotation-center: 1267.50
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112532.h5
+  tot-slices: 2160
+  rotation-center: 1272
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112545.h5
+  tot-slices: 2160
+  rotation-center: 1250
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112548.h5
+  tot-slices: 2160
+  rotation-center: 1250
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112550.h5
+  tot-slices: 2160
+  rotation-center: 1249.50
+  reconstruction-version: 1
+  
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112552.h5
+  tot-slices: 2160
+  rotation-center: 1255.50
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112554.h5
+  tot-slices: 2160
+  rotation-center: 1252
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112556.h5
+  tot-slices: 2160
+  rotation-center: 1256.50
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112558.h5
+  tot-slices: 2160
+  rotation-center: 1258.50
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112560.h5
+  tot-slices: 2160
+  rotation-center: 1259
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112577.h5
+  tot-slices: 2160
+  rotation-center: 1266
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112579.h5
+  tot-slices: 2160
+  rotation-center: 1266
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112581.h5
+  tot-slices: 2160
+  rotation-center: 1260.5
+  reconstruction-version: 1
+  
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112583.h5
+  tot-slices: 2160
+  rotation-center: 1266
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112585.h5
+  tot-slices: 2160
+  rotation-center: 1262.5
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112587.h5
+  tot-slices: 2160
+  rotation-center: 1264
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112589.h5
+  tot-slices: 2160
+  rotation-center: 1258
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112591.h5
+  tot-slices: 2160
+  rotation-center: 1266.5
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112593.h5
+  tot-slices: 2160
+  rotation-center: 1266
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112595.h5
+  tot-slices: 2160
+  rotation-center: 1260
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112597.h5
+  tot-slices: 2160
+  rotation-center: 1267
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112599.h5
+  tot-slices: 2160
+  rotation-center: 1266
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112601.h5
+  tot-slices: 2160
+  rotation-center: 1250
+  reconstruction-version: 1
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112603.h5
+  tot-slices: 2160
+  rotation-center: 1254
+  reconstruction-version: 1
+
+  # ////////////////////////////////////////////////////////////// V2
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112437.h5
+  tot-slices: 2160
+  rotation-center: 1273
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112441.h5
+  tot-slices: 2160
+  rotation-center: 1278
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112443.h5
+  tot-slices: 2160
+  rotation-center: 1277
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112451.h5
+  tot-slices: 2160
+  rotation-center: 1272.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112453.h5
+  tot-slices: 2160
+  rotation-center: 1273.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112455.h5
+  tot-slices: 2160
+  rotation-center: 1278
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112458.h5
+  tot-slices: 2160
+  rotation-center: 1278
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112461.h5
+  tot-slices: 2160
+  rotation-center: 1278.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112464.h5
+  tot-slices: 2160
+  rotation-center: 1276.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112467.h5
+  tot-slices: 2160
+  rotation-center: 1278
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112470.h5
+  tot-slices: 2160
+  rotation-center: 1275.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112475.h5
+  tot-slices: 2160
+  rotation-center: 1276
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112478.h5
+  tot-slices: 2160
+  rotation-center: 1276.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112482.h5
+  tot-slices: 2160
+  rotation-center: 1277.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112484.h5
+  tot-slices: 2160
+  rotation-center: 1273
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112487.h5
+  tot-slices: 2160
+  rotation-center: 1278.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112489.h5
+  tot-slices: 2160
+  rotation-center: 1278.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112491.h5
+  tot-slices: 2160
+  rotation-center: 1276
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112493.h5
+  tot-slices: 2160
+  rotation-center: 1276.50
+  reconstruction-version: 2
+  
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112495.h5
+  tot-slices: 2160
+  rotation-center: 1277.50
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112500.h5
+  tot-slices: 2160
+  rotation-center: 1278
+  reconstruction-version: 2
+
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112502.h5
+  tot-slices: 2160
+  rotation-center: 1278
+  reconstruction-version: 2
+  
+- url: s3://Pania_2021Q3_in_situ_data/hdf5/fly_scan_id_112504.h5
+  tot-slices: 2160
+  rotation-center: 1277
+  reconstruction-version: 2

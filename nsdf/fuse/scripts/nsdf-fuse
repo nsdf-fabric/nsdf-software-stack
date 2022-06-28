@@ -1,0 +1,448 @@
+#!/bin/bash
+
+# when any command fails
+set -e 
+
+# DANGEROUS (!) verbose
+# uncomment only if needed
+if [[ "$DEBUG" == "1" ]] ; then
+	set -x
+fi
+
+KiB=$(( 1024 ))
+MiB=$(( $KiB * 1024 ))
+GiB=$(( $MiB * 1024 ))
+
+
+# /////////////////////////////////////////////////////////////////
+function DropCache() {
+	# see https://www.tecmint.com/clear-ram-memory-cache-buffer-and-swap-space-on-linux/
+	sync
+	sudo sh -c "/usr/bin/echo 3 > /proc/sys/vm/drop_caches"
+}
+
+# /////////////////////////////////////////////////////////////////
+function Retry() {
+	local count=0
+	until "$@"; do
+		count=$(($count + 1))
+		if [ $count -lt 20 ]; then
+			echo "... retry attempt failed, retrying"
+			sleep 5
+		else
+			echo "Retry $@ failed , giving up."
+			exit 1
+		fi
+	done
+	echo "Retry succeded"
+	return 0
+}
+
+# /////////////////////////////////////////////////////////////////
+function CheckMount() {
+	__dir__=$1
+	echo "Checking mount..."
+	__result__=$(mount | grep ${__dir__})
+	if [ -z "$__result__" ] ; then
+		mount
+		echo "ERROR: cannot mount ${__dir__} "
+		exit 1
+	fi
+	echo "Check mount ok"
+}
+
+# /////////////////////////////////////////////////////////////////
+function ListBuckets() {
+	aws --endpoint-url ${AWS_S3_ENDPOINT_URL:?} s3 ls
+}
+
+# /////////////////////////////////////////////////////////////////
+function CleanAll() {
+
+	echo "Cleaning all..."
+
+	BUCKETS_DIR=${BUCKETS_DIR:?}
+
+	for I in {1..3}
+	do
+		
+		# unmount filesystem
+		__mounted__=$(mount | grep ${BUCKETS_DIR} | cut -d" " -f3)
+		for it in $__mounted__; do 
+			echo "Unmounting $it"
+			sudo umount -l $it || true
+			sudo umount -f $it || true
+		done
+
+		# remove buckets
+		__buckets__=$(ListBuckets  | grep "nsdf-fuse-test" | cut -d" " -f3)
+		for it in $__buckets__; do 
+			echo "BaseRemoveBucket $it --force "
+			BaseRemoveBucket $it
+		done
+
+		# remove bucket dir
+		sudo rm -Rf /tmp/nsdf-fuse
+
+	done
+
+	echo "*** Mounted filesystem:"
+	mount | grep ${BUCKETS_DIR} | cut -d" " -f3
+
+	echo "*** Existing remote buckets:"
+	ListBuckets  | grep "nsdf-fuse-test" | cut -d" " -f3
+
+	echo "*** Content of ${BUCKETS_DIR}:"
+	find ${BUCKETS_DIR}/ 2>/dev/null || true
+}
+
+
+# /////////////////////////////////////////////////////////////////////
+function BeginTest() {
+	echo "Begin test [$1]"
+	SECONDS=0
+	pids=""
+	FuseUp
+}
+
+# /////////////////////////////////////////////////////////////////////
+function EndTest() {
+	echo "Waiting for PIDS=$pids"
+    for p in $pids; do
+        if wait $p; then
+            : # echo "process $p success"
+        else
+            echo "process $p Failure!"
+            exit 1
+        fi
+   done
+	sync 
+	FuseDown
+	echo "end test [$1] $(( ( $TOT_GB * $GiB ) / ( $MiB * ${SECONDS} ) ))MiB/sec TOT_SECONDS=$SECONDS "
+	printf '%b\n' "Throughput [$1] $(( ( $TOT_GB * $GiB ) / ( $MiB * ${SECONDS} ) ))MiB/sec TOT_SECONDS=$SECONDS " >> $OUTPUT_FILE
+	
+}
+
+# /////////////////////////////////////////////////////////////////////
+function RunFioBenchmark() {
+
+	TOT_GB=4
+
+	# inspired by https://juicefs.com/docs/cloud/single_node_benchmark/
+	BeginTest fio-seq-1-write
+	fio  --name=fio-seq-1-write  --group_reporting=1 --directory=${TEST_DIR} --rw=write --bs=256k --size=${TOT_GB}G --refill_buffers 
+	EndTest fio-seq-1-write
+	nsdf-fuse clean-bucket
+
+	BeginTest fio-seq-1-read
+	fio  --name=fio-seq-1-read --group_reporting=1 --directory=${TEST_DIR} --rw=read --bs=256k --size=${TOT_GB}G --refill_buffers 
+	EndTest fio-seq-1-read
+	nsdf-fuse clean-bucket
+
+	BeginTest fio-seq-n-write	
+	fio  --name=fio-seq-n-write --group_reporting=1 --directory=${TEST_DIR} --rw=write --bs=256k  --size=${TOT_GB}G --refill_buffers  --numjobs=16  
+	EndTest fio-seq-n-write	
+	nsdf-fuse clean-bucket
+
+	BeginTest fio-seq-n-read
+	fio  --name=fio-seq-n-read --group_reporting=1 --directory=${TEST_DIR} --rw=read --bs=256k  --size=${TOT_GB}G --refill_buffers --numjobs=16 
+	EndTest fio-seq-n-read
+	nsdf-fuse clean-bucket
+
+	BeginTest fio-rand-1-write
+	fio  --name=fio-rand-1-write --group_reporting=1 --directory=${TEST_DIR} --rw=randwrite --bs=256k --size=${TOT_GB}G --refill_buffers 
+	EndTest fio-rand-1-write
+	nsdf-fuse clean-bucket
+
+	BeginTest fio-rand-1-read
+	fio  --name=fio-rand-1-read --group_reporting=1 --directory=${TEST_DIR} --rw=randread --bs=256k  --size=${TOT_GB}G 
+	EndTest fio-rand-1-read
+	nsdf-fuse clean-bucket
+}
+
+
+# ///////////////////////////////////////////////////////////////////////
+function RunSimpleBenchmark() {
+
+	REMOTE=${TEST_DIR:?}
+	LOCAL=/tmp/nsdf-fuse/local-storage
+
+	# ////////////////////////////////////////// 
+	# sequential
+
+	# note: internally creating only one file of 1GB
+	if [[ "1" == "1" ]] ; then
+		TOT_GB=8
+
+		# generate 1Gib File
+		mkdir -p $LOCAL
+		rm -Rf $LOCAL/*
+		head -c $GiB /dev/urandom > $LOCAL/1GB
+
+		# simple-seq-1
+		BeginTest simple-seq-1-write
+		for (( I=0 ; I < TOT_GB ; I++ )) ; do 
+		  cp $LOCAL/1GB $REMOTE/$I 
+		done
+		EndTest simple-seq-1-write
+
+		BeginTest simple-seq-1-read
+		for (( I=0 ;  I < TOT_GB ; I++ )) ; do 
+		  cp $REMOTE/$I /dev/null 
+		done
+		EndTest simple-seq-1-read
+
+		nsdf-fuse clean-bucket
+
+		# simple-seq-n
+		BeginTest simple-seq-n-write
+		for (( I=0 ; I < TOT_GB ; I++ )) ; do 
+			cp $LOCAL/1GB $REMOTE/$I & 
+			pids+=" $!"
+		done
+		EndTest simple-seq-n-write
+
+		BeginTest simple-seq-n-read
+		for (( I=0 ; I < TOT_GB ; I++ )) ; do 
+			cp $REMOTE/$I /dev/null & 
+			pids+=" $!"
+		done
+		EndTest simple-seq-n-read
+
+		nsdf-fuse clean-bucket
+	fi
+
+	# ///////////////////////////////////////////////
+	# random
+
+	if [[ "1" == "1" ]] ; then
+
+		# 16 jobs in parallel, each job handling 2048 files of 64KB each, TOT=16*2048*65536=2GB
+		# note: internally creating 2048*64Kb==128MiB
+		NUM_JOBS=16
+		NUM_FILES=2048
+		FILESIZE=65536
+		TOT_GB=$(( ( $NUM_JOBS * $NUM_FILES * $FILESIZE ) / ($GiB) ))  
+
+		mkdir -p $LOCAL
+		rm -Rf $LOCAL/*
+
+		# generate random files
+		for (( I=0 ; I < NUM_FILES ; I++ )) ; do 
+			head -c $FILESIZE /dev/urandom > $LOCAL/$I 
+		done
+
+		# create directories
+		FuseUp
+		for (( I=0 ; I < NUM_JOBS ; I++ )) ; do 
+			mkdir -p $REMOTE/$I
+			touch $REMOTE/$I/.keep # avoid problem of empty directory
+		done
+		FuseDown
+
+		# simple-rand-n
+		BeginTest simple-rand-n-write
+		for (( I=0 ; I < NUM_JOBS ; I++ )) ; do 
+			find $LOCAL -type f -exec cp "{}" $REMOTE/$I/ \; & 
+			pids+=" $!"
+		done
+		EndTest simple-rand-n-write
+
+		BeginTest simple-rand-n-read
+		for (( I=0 ; I < NUM_JOBS ; I++ )) ; do 
+			find $REMOTE/$I -type f -exec cp "{}" /dev/null \; & 
+			pids+=" $!"
+		done
+		EndTest simple-rand-n-read
+
+		nsdf-fuse clean-bucket
+	fi
+}
+
+# //////////////////////////////////////////////////////////////////////////
+function UpdateOS() {
+	sudo apt -qq update
+	sudo apt -qq install -y nload expect python3 python3-pip fuse libfuse-dev net-tools
+	sudo python3 -m pip install -y --upgrade awscli
+}
+
+# //////////////////////////////////////////////////////////////////////////
+function InstallFIO() {
+	git clone https://github.com/axboe/fio
+	pushd fio
+	./configure
+	make 
+	sudo make install
+	sudo cp /usr/local/bin/fio /usr/bin/fio 
+	popd
+	rm -Rf fio
+
+	# check the version
+	fio --version
+}
+
+
+# //////////////////////////////////////////////////////////////////
+function BaseCreateBucket() {
+	aws --endpoint-url ${AWS_S3_ENDPOINT_URL:?} s3api create-bucket --bucket ${1:?} --region ${AWS_DEFAULT_REGION:?} 
+}
+
+# //////////////////////////////////////////////////////////////////
+function BaseRemoveBucket() {
+	aws --endpoint-url ${AWS_S3_ENDPOINT_URL:?} s3 rb s3://${1:?} --force 
+}
+
+# //////////////////////////////////////////////////////////////////
+function CreateBucket() {
+	BaseCreateBucket ${BUCKET_NAME:?}
+}
+
+# //////////////////////////////////////////////////////////////////
+function RemoveBucket() {
+	BaseRemoveBucket ${BUCKET_NAME:?}
+}
+
+# //////////////////////////////////////////////////////////////////
+function ConfigTarget() {
+
+	# target specific
+	# please specify a target as an environment variable
+	__target__=${TARGET:?}
+
+	export BUCKET_NAME=nsdf-fuse-test-${__target__}
+	export BASE_DIR=${BUCKETS_DIR}/${BUCKET_NAME}
+	export TEST_DIR=${BASE_DIR}/test
+	export CACHE_DIR=${BASE_DIR}/cache
+	export LOG_DIR=${BASE_DIR}/log
+
+	echo "NSDF-fuse v1.0"
+	echo "   BUCKET_NAME=${BUCKET_NAME}"
+	echo "   AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}"
+	echo "   AWS_S3_ENDPOINT_URL=${AWS_S3_ENDPOINT_URL}"
+	echo "   BASE_DIR=${BASE_DIR}"
+	echo "   TEST_DIR=${TEST_DIR}"
+	echo "   CACHE_DIR=${CACHE_DIR}"
+	echo "   LOG_DIR=${LOG_DIR}"
+
+		 # make sure I have all the directories
+	mkdir  -p ${BASE_DIR}  || true
+	mkdir  -p ${TEST_DIR}  || true
+	mkdir  -p ${CACHE_DIR} || true
+	mkdir  -p ${LOG_DIR}   || true
+
+	# add some functions (as CreateBucket, RemoveBucket, FuseUp and FuseDown)
+	source scripts/${__target__}.sh 
+}
+
+
+# //////////////////////////////////////////////////////////////////
+function Main() {
+
+	# all test are meant to be temporary
+	export BUCKETS_DIR=/tmp/nsdf-fuse/buckets
+	mkdir -p $BUCKETS_DIR
+
+	# default config
+	if [[ "${AWS_DEFAULT_REGION}" == "" ]] ; then
+		AWS_DEFAULT_REGION="us-east-1"
+	fi	
+
+	# default config
+	if [[ "${AWS_S3_ENDPOINT_URL}" == "" ]] ; then
+		AWS_S3_ENDPOINT_URL="https://s3.${AWS_DEFAULT_REGION}.amazonaws.com"
+	fi	
+
+	if [[ "$1" == "clean-all" ]] ; then
+		CleanAll
+		exit 0
+
+	elif [[ "$1" == "list-buckets" ]] ; then
+		ListBuckets
+		exit 0
+
+
+
+	elif [[ "$1" == "update-os" ]] ; then
+		UpdateOS
+		exit 0
+
+	elif [[ "$1" == "install-fio" ]] ; then
+		InstallFIO
+		exit 0
+	fi
+
+	# need a target from here
+	ConfigTarget
+
+	while (( "$#" )) ; do
+
+		ACTION=${1:?}
+		shift
+
+		echo "Begin ACTION=${ACTION}" 
+
+		if [[ "${ACTION}" == "install" ]] ; then
+			Install_${TARGET}
+
+		elif [[ "${ACTION}" == "uninstall" ]] ; then
+			Uninstall_${TARGET}
+
+		elif [[ "${ACTION}" == "create-bucket" ]] ; then
+			CreateBucket 
+			echo "*** Check test bucket IS listed here:"
+			ListBuckets  | grep ${BUCKET_NAME}
+
+		elif [[ "${ACTION}" == "remove-bucket" ]] ; then
+			RemoveBucket 
+			echo "*** Check that test bucket IS NOT listed here:"
+			ListBuckets
+
+		elif [[ "${ACTION}" == "clean-bucket" ]] ; then
+			SECONDS=0
+			FuseUp 
+			rm -Rf ${TEST_DIR}/* 
+			FuseDown
+			echo "${ACTION} done. Seconds: ${SECONDS}"
+
+		elif [[ "${ACTION}" == "up" ]] ; then
+			FuseUp 
+
+		elif [[ "${ACTION}" == "down" ]] ; then
+			FuseDown 
+
+		elif [[ "${ACTION}" == "find" ]] ; then
+			echo "*** List of files in the bucket:"
+			find ${TEST_DIR} 
+
+		elif [[ "${ACTION}" == "touch" ]] ; then
+			echo "nsdf_test_body" > ${TEST_DIR}/nsdf_test_file
+
+		# "WARNING: remember to create-bucket
+		elif [[ "${ACTION}" == "fio-benchmark" ]] ; then
+			RunFioBenchmark
+			exit 0
+
+		elif [[ "${ACTION}" == "simple-benchmark" ]] ; then
+			RunSimpleBenchmark
+			exit 0
+
+		else
+			echo "ERROR: unknown ACTION=${ACTION}"
+			exit 1
+		fi
+
+		echo "End ACTION=${ACTION}"
+		echo ""
+
+	done
+}
+
+# //////////////////////////////////////////////////////////////////
+if [[ $# -ge 1 ]]; then
+	Main $@
+fi
+
+
+
+
+

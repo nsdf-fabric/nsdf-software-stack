@@ -1,0 +1,19 @@
+---
+- name: Mount Disk
+  become: yes
+  hosts: all
+  gather_facts: no
+  tasks:
+  - name: Setup OS
+    args:
+      executable: /bin/bash
+    shell: |
+      set -e # stop on errors
+      exec 2>&1 # Redirect standard error to standard out
+      lsblk
+      mkfs -t ext4  {{ disk }}
+      mkdir -p {{ mount_dir }}
+      mount {{ disk }} {{ mount_dir }}
+      chown -R {{ ansible_user }} {{ mount_dir }}
+      chmod a+rwX {{ mount_dir }}
+      df -h

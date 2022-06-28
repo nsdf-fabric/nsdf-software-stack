@@ -1,0 +1,16 @@
+# all the environment variables that will be used the workflow, eventually passed to DASK workers
+env:
+  include-vault: 
+  - s3-cloudbank
+  - material-commons-api
+
+  REMOTE: s3://nsdf-catalog/20220624
+  LOCAL: /tmp/nsdf-catalog/20220624
+
+# if you want to run on dask
+dask:
+  enabled: True
+  inventory: ~/inventory.ini 
+  group: all
+  num-process-per-host: 16
+  worker-local-dir: /tmp/nsdf/dask-workers
