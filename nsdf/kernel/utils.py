@@ -413,4 +413,4 @@ def PrintEnv(env):
 # ////////////////////////////////////////////////////////////////
 def SetEnv(env):
 	for k,v in env.items():
-		os.environ[k]=v
+		os.environ[k]=str(v)
