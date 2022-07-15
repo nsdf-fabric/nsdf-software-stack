@@ -6,8 +6,6 @@ Create and modify an Ansible `inventory.ini` file (see `./ansible/inventory.ini`
 Check the `./nsdf/material_science_workflow/workflow.yaml` file and **modify as needed**. 
 For example you may need to change the `dask` section.
 
-
-
 Export the workflow environment variables in the to your shell
 
 ```
@@ -47,24 +45,6 @@ MOUNT_DIR=/vol_b
 ansible-playbook --inventory ${INVENTORY} --limit ${GROUP} --extra-vars "disk=$DISK mount_dir=$MOUNT_DIR" ansible/mount-disk.yaml
 ```
 
-# (OPTIONAL) FIx clock issues 
-
-```
-# prepend with `dask_execute_code` to run on all VMs (see ~/bash.config file)
-sudo ntpdate -u in.pool.ntp.org
-```
-
-# (OPTIONAL) Firewalls/Security Groups
-
-Check firewall status:
-
-```
-sudo ufw status
-```
-
-In case of AWS EC2 machine make sure the *security group* allows incoming/outgoing connections for DASK.
-
-
 # Preprocessing 
 
 
@@ -97,6 +77,24 @@ Setup the Virtual Machine for convert (CPython):
 ```
 ansible-playbook --inventory ${INVENTORY} --limit ${GROUP}  ansible/setup-cpython.yaml
 ```
+
+
+# (OPTIONAL) Fix clock issues 
+
+```
+dask_execute_code ntpdate -u in.pool.ntp.org
+```
+
+# (OPTIONAL) Firewalls/Security Groups
+
+Check firewall status:
+
+```
+dask_execute_code sudo ufw status
+```
+
+In case of AWS EC2 machine make sure the *security group* allows incoming/outgoing connections for DASK.
+
 
 # Run the workflow
 

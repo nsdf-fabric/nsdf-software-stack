@@ -15,7 +15,7 @@ env:
 dask:
   enabled: True
   inventory: ~/inventory.ini
-  group: all
+  group: chpc
   num-process-per-host: 1
   worker-local-dir: /tmp/nsdf/dask-workers
 

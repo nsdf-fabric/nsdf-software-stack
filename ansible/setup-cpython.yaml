@@ -7,4 +7,4 @@
   roles:
   - install_cpython
   vars:
-    - github-repository: git@github.com:nsdf-fabric/nsdf-pania.git
+    - github_repository: git@github.com:nsdf-fabric/nsdf-software-stack.git

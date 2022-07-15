@@ -154,7 +154,7 @@
     git config --global user.name "Giorgio Scorzelli"
     git config --global user.email "scrgiorgio@gmail.com"
 
-    GIT_SSH_COMMAND="ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa" git clone {{ git-hub-repository }} ~/nsdf-software-stack
+    GIT_SSH_COMMAND="ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa" git clone {{ github_repository }} ~/nsdf-software-stack
     
 
 
