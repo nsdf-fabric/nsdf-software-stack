@@ -8,10 +8,10 @@ from   prefect import Flow, Parameter, Task, task, unmapped
 from nsdf.kernel import logger, LoadYaml, rmfile, S3,GetPackageFilename, S3Sync, RunCommand, SetupLogger, LoadYaml
 from nsdf.distributed import NSDFDaskCluster
 
-	
+os.environ["CUDA_VISIBLE_DEVICES"]="1"  # specify which GPU(s) to be used. may need to export in the bash env: export CUDA_VISIBLE_DEVICES=1 	
 # ////////////////////////////////////////////////////////////////////////
 def ParseRangeFromString(value):
-	ret=value
+        ret=value
 	if isinstance(ret,str):
 		ret=[int(it) for it in ret.split() if it]
 	assert(len(ret)==3)
@@ -26,7 +26,7 @@ def FixTensorFlowProblem():
 	not leaving GPU memory for the reconstruction
 	https://stackoverflow.com/questions/65723891/how-to-free-tf-keras-memory-in-python-after-a-model-has-been-deleted-while-othe
 	"""
-
+       
 	import tensorflow as tf
 	
 	# print statistics of all GPUs (THIS is slow on FLuidStack?)
@@ -48,7 +48,7 @@ def FixTensorFlowProblem():
 
 # ////////////////////////////////////////////////////////////////////////
 def Preprocess(
-	hdf5_url=None,
+        hdf5_url=None,
 	tot_slices=0, 
 	rotation_center=None,
 	disable_reconstruction=False,
@@ -61,7 +61,7 @@ def Preprocess(
 	uploader_num_connections=8  
 	):
 
-	assert tot_slices
+        assert tot_slices
 	assert disable_reconstruction or rotation_center
 
 	T1=time.time()
@@ -107,6 +107,7 @@ def Preprocess(
 
 	# do slice by slice
 	for I in range(slice_range[0],slice_range[1] if slice_range[1]>0 else tot_slices, slice_range[2]):
+               
 		slice_uid=str(I).rjust(write_tiff_digit,'0')
 		loc_rec   = f"{loc}/{r_prefix}/i_{slice_uid}.tiff"
 		rem_rec   = f"{rem}/{r_prefix}/i_{slice_uid}.tiff"
@@ -134,9 +135,9 @@ def Preprocess(
 						# internally it will add a suffix SUCH AS `_<num>.tiff``
 						write_tiff_filename=f"{loc}/{r_prefix}/i"
 
-						# reconstruct versioning here
-						if reconstruction_version==1:
-							from nsdf.material_science_workflow.reconstruct_v1 import reconstruct_image
+						# reconstruct versioning here                                               					
+                                                if reconstruction_version==1:
+                                                        from nsdf.material_science_workflow.reconstruct_v1 import reconstruct_image
 							vmin,vmax=reconstruct_image(loc_hdf5, write_tiff_filename, I1, I2, rotation_center, write_tiff_digit=write_tiff_digit)
 
 						elif reconstruction_version==2:
@@ -168,7 +169,8 @@ def Preprocess(
 						logger.error(ex, exc_info=True)
 
 				if os.path.isfile(loc_rec):
-					uploader.put(loc_rec, rem_rec)
+                                        s3.uploadObject(loc_rec,rem_rec)
+			#		uploader.put(loc_rec, rem_rec)  ###possible bug on thread concurrency issues, comment out to use single upload
 
 		if not disable_segmentation:
 
@@ -204,7 +206,12 @@ def Preprocess(
 					uploader.put(loc_seg, rem_seg)
 
 	# wait for all files
-	uploader.waitAndExit()
+        #try:
+         #       uploader.waitAndExit()
+                
+        #except KeyboardInterrupt:
+         #       print("no traceback")
+	#uploader.waitAndExit() ###possible bug on thread concurrency issues, comment out to use single upload
 
 	# clean up
 	if True:
@@ -248,7 +255,7 @@ def PreprocessTask(d):
 
 def PreprocessMain(workflow):
 
-	env=workflow["env"]
+        env=workflow["env"]
 	files = workflow["files"]
 	tot_slices=files[0]["tot-slices"] # assume they are alll the same
 	summarize="--summarize" in sys.argv
