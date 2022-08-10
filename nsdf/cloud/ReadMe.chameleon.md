@@ -151,7 +151,7 @@ with the folloing values:
 
 ## Update your vault file
 
-Then add some items to your `~/.nsdf/vault/vault.yml` file (change values as needed; for example you may need to change `OS_PROJECT_ID`, `OS_PROJECT_NAME`, `OS_USERNAME`, `OS_PASSWORD`):
+Then add some items to your `~/.nsdf/vault/vault.yaml` file (change values as needed; for example you may need to change `OS_PROJECT_ID`, `OS_PROJECT_NAME`, `OS_USERNAME`, `OS_PASSWORD`):
 
 ```
 nsdf-cloud-chameleon-tacc:

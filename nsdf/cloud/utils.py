@@ -110,7 +110,7 @@ def GetConfig(account):
 	if __vault__ is None:
 		VAULT_DIR=os.path.expanduser("~/.nsdf/vault")
 		# I am expeting a global vault file heres
-		filename=os.path.realpath(os.path.join(VAULT_DIR,"vault.yml"))
+		filename=os.path.realpath(os.path.join(VAULT_DIR,"vault.yaml"))
 		Check(os.path.isfile(filename),f"cannot find config file {filename}")
 		body=ReadTextFile(filename)
 		body=body.replace("${CURRENT_DIRECTORY}",os.path.dirname(filename))

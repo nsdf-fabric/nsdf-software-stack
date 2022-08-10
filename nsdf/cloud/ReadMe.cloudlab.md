@@ -150,7 +150,7 @@ pc.printRequestRSpec(request)
 
 ## Update your vault file
 
-Add one item to your `~/.nsdf/vault/vault.yml` file (change values as needed; for example you may need to change the `project-name`, `profile-name`,`ssh-username`):
+Add one item to your `~/.nsdf/vault/vault.yaml` file (change values as needed; for example you may need to change the `project-name`, `profile-name`,`ssh-username`):
 
 ```
 nsdf-cloud-cloudlab:

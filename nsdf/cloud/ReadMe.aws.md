@@ -46,7 +46,7 @@ INSTANCE_TYPE=t2.micro
 python3 -m nsdf.cloud nsdf-cloud-aws create nodes test1 --instance-type $INSTANCE_TYPE --region $AWS_DEFAULT_REGION  --num 1
 
 INSTANCE_TYPE=c5d.9xlarge
-python3 -m nsdf.cloud nsdf-cloud-aws create nodes test1 --instance-type $INSTANCE_TYPE --region $AWS_DEFAULT_REGION  --num 10
+python3 -m nsdf.cloud nsdf-cloud-aws create nodes test1 --instance-type $INSTANCE_TYPE --region $AWS_DEFAULT_REGION  --num 1
 ```
 
 List all instances with name `test1`:
@@ -173,9 +173,9 @@ Go to *EC2* section and select *Actions/Import Key pair*:
 * Text: *copy here your public key*
 
 
-## Update your `vault.yml` file
+## Update your `vault.yaml` file
 
-Create a new item to your Vault file (i.e., `~/.nsdf/vault/vault.yml`). Change values as needed:
+Create a new item to your Vault file (i.e., `~/.nsdf/vault/vault.yaml`). Change values as needed:
 
 ```
 nsdf-cloud-aws:  class: AmazonEC2

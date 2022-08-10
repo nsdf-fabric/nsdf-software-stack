@@ -17,11 +17,8 @@ from prefect import Flow, Parameter, Task, task, unmapped
 from nsdf.kernel import logger, LoadYaml, rmfile, S3, GetPackageFilename, S3Sync, RunCommand, SetupLogger, LoadYaml
 from nsdf.distributed import NSDFDaskCluster
 
-# specify which GPU(s) to be used. may need to export in the bash env: export CUDA_VISIBLE_DEVICES=1
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 # ////////////////////////////////////////////////////////////////////////
-
-
 def ParseRangeFromString(value):
     ret = value
     if isinstance(ret, str):
@@ -59,8 +56,6 @@ def FixTensorFlowProblem():
         f"FixTensorFlowProblem CUDA_VISIBLE_DEVICES={CUDA_VISIBLE_DEVICES} done")
 
 # ////////////////////////////////////////////////////////////////////////
-
-
 def Preprocess(
         hdf5_url=None,
         tot_slices=0,

@@ -26,7 +26,7 @@ Go to the Vulr [Manage SSH keys](https://www.cloudlab.us/ssh-keys.php) and add y
 
 ## Update your vault file
 
-Add one item to your `~/.nsdf/vault/vault.yml` file (change values as needed; for example you may need to change the `api-key`):
+Add one item to your `~/.nsdf/vault/vault.yaml` file (change values as needed; for example you may need to change the `api-key`):
 
 ```
 nsdf-cloud-vultr:

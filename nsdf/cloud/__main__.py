@@ -88,7 +88,7 @@ def main(args):
 	target=args[0]
 	args=args[1:]
 
-	# in the ~/.nsdf/vault/vault.yml file there should be an item with the $TARGET name
+	# in the ~/.nsdf/vault/vault.yaml file there should be an item with the $TARGET name
 	config=GetConfig(target)
 
 	# override by command line
