@@ -5,6 +5,7 @@ from pprint import pprint
 import yaml
 import traceback
 import csv
+import boto3,urllib
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -16,191 +17,210 @@ logger=logging.getLogger('example')
 # ////////////////////////////////////////////////////////////////////////
 def getDataverseInstances():
 	# https://dataverse.org/metrics
-	return [
-		{"name": "Abacus", "url": "http://abacus.library.ubc.ca"},
-		{"name": "ACSS Dataverse", "url": "http://dataverse.theacss.org"},
-		{"name": "Arca Dados", "url": "http://dadosdepesquisa.fiocruz.br"},
-		{"name": "ASU Library Research Data Repository", "url": "http://dataverse.asu.edu"},
-		{"name": "AUSSDA Dataverse", "url": "http://data.aussda.at"},
-		{"name": "Borealis", "url": "http://borealisdata.ca"},
-		{"name": "CIFOR", "url": "http://data.cifor.org"},
-		{"name": "CIMMYT Research Data", "url": "http://data.cimmyt.org"},
-		# {"name": "CIRAD Dataverse", "url": "http://dataverse.cirad.fr"},
-		{"name": "CORA. Research Data Repository (RDR)", "url": "http://dataverse.csuc.cat"},
-		{"name": "CROSSDA", "url": "http://data.crossda.hr"},
-		{"name": "CUHK Research Data Repository", "url": "http://researchdata.cuhk.edu.hk"},
-		{"name": "Dartmouth Dataverse", "url": "http://dataverse.dartmouth.edu"},
-		{"name": "DaRUS", "url": "http://darus.uni-stuttgart.de"},
-		# {"name": "Data INRAe", "url": "http://data.inrae.fr"},
-		{"name": "Data Suds", "url": "http://dataverse.ird.fr"},
-		{"name": "data.sciencespo", "url": "http://data.sciencespo.fr"},
-		{"name": "Dataverse e-cienciaDatos", "url": "http://edatos.consorciomadrono.es"},
-		{"name": "DataverseNL", "url": "http://dataverse.nl"},
-		{"name": "DataverseNO", "url": "http://dataverse.no"},
-		{"name": "DR-NTU (Data)", "url": "http://researchdata.ntu.edu.sg"},
-		{"name": "Florida International University Research Data Portal", "url": "http://dataverse.fiu.edu"},
-		# {"name": "George Mason University Dataverse", "url": "http://dataverse.orc.gmu.edu"},
-		{"name": "Göttingen Research Online", "url": "http://data.goettingen-research-online.de"},
-		{"name": "Harvard Dataverse", "url": "http://dataverse.harvard.edu"},
-		{"name": "HeiDATA", "url": "http://heidata.uni-heidelberg.de"},
-		{"name": "IBICT", "url": "http://repositoriopesquisas.ibict.br"},
-		{"name": "ICRISAT", "url": "http://dataverse.icrisat.org"},
-		{"name": "IFDC Dataverse", "url": "http://dataverse.ifdc.org"},
-		{"name": "Ifsttar Dataverse", "url": "http://research-data.ifsttar.fr"},
-		{"name": "IISH Dataverse", "url": "http://datasets.iisg.amsterdam"},
-		{"name": "Institute of Russian Literature Dataverse", "url": "http://dataverse.pushdom.ru"},
-		{"name": "International Potato Center", "url": "http://data.cipotato.org"},
-		{"name": "Italian Institute of Technology (IIT)", "url": "http://dataverse.iit.it"},
-		{"name": "Johns Hopkins University", "url": "http://archive.data.jhu.edu"},
-		{"name": "Jülich DATA", "url": "http://data.fz-juelich.de"},
-		{"name": "Libra Data", "url": "http://dataverse.lib.virginia.edu"},
-		{"name": "LIPI Dataverse", "url": "http://data.lipi.go.id"},
-		{"name": "Lithuanian Data Archive for Social Sciences and Humanities (LiDA)", "url": "http://lida.dataverse.lt"},
-		{"name": "MELDATA", "url": "http://data.mel.cgiar.org"},
-		{"name": "NIE Data Repository", "url": "http://researchdata.nie.edu.sg"},
-		{"name": "NIOZ Dataverse", "url": "http://dataverse.nioz.nl"},
-		{"name": "Open Data @ UCLouvain", "url": "http://dataverse.uclouvain.be"},
-		{"name": "Open Forest Data", "url": "http://dataverse.openforestdata.pl"},
-		{"name": "Peking University", "url": "http://opendata.pku.edu.cn"},
-		{"name": "Pontificia Universidad Católica del Perú", "url": "http://datos.pucp.edu.pe"},
-		{"name": "QDR Main Collection", "url": "http://data.qdr.syr.edu"},
-		{"name": "Repositorio de datos de investigación de la Universidad de Chile", "url": "http://datos.uchile.cl"},
-		{"name": "Repositorio de Datos de Investigación Universidad del Rosario", "url": "http://research-data.urosario.edu.co"},
-		{"name": "Repositórios Piloto da Rede Nacional de Ensino e Pesquisa", "url": "http://dadosabertos.rnp.br"},
-		{"name": "RSU Dataverse", "url": "http://dataverse.rsu.lv"},
-		{"name": "Texas Data Repository Dataverse", "url": "http://dataverse.tdl.org"},
-		{"name": "UCLA Dataverse", "url": "http://dataverse.ucla.edu"},
-		{"name": "UNB Libraries Dataverse", "url": "http://dataverse.lib.unb.ca"},
-		{"name": "UNC Dataverse", "url": "http://dataverse.unc.edu"},
-		{"name": "University of Manitoba Dataverse", "url": "http://dataverse.lib.umanitoba.ca"},
-		{"name": "Università degli Studi di Milano", "url": "http://dataverse.unimi.it"},
-		{"name": "UWI", "url": "http://dataverse.sta.uwi.edu"},
-		{"name": "VTTI", "url": "http://dataverse.vtti.vt.edu"},
-		{"name": "World Agroforestry - Research Data Repository", "url": "http://data.worldagroforestry.org"},
-		{"name": "Yale-NUS Dataverse", "url": "http://dataverse.yale-nus.edu.sg"},
-	]
+
+	if False:
+		return [
+			{"name": "Demo", "url": "https://demo.dataverse.org/"}
+		]
+
+	else:
+			
+		return [
+			{"name": "Abacus", "url": "http://abacus.library.ubc.ca"},
+			{"name": "ACSS Dataverse", "url": "http://dataverse.theacss.org"},
+			{"name": "Arca Dados", "url": "http://dadosdepesquisa.fiocruz.br"},
+			{"name": "ASU Library Research Data Repository", "url": "http://dataverse.asu.edu"},
+			{"name": "AUSSDA Dataverse", "url": "http://data.aussda.at"},
+			{"name": "Borealis", "url": "http://borealisdata.ca"},
+			{"name": "CIFOR", "url": "http://data.cifor.org"},
+			{"name": "CIMMYT Research Data", "url": "http://data.cimmyt.org"},
+			# {"name": "CIRAD Dataverse", "url": "http://dataverse.cirad.fr"},
+			{"name": "CORA. Research Data Repository (RDR)", "url": "http://dataverse.csuc.cat"},
+			{"name": "CROSSDA", "url": "http://data.crossda.hr"},
+			{"name": "CUHK Research Data Repository", "url": "http://researchdata.cuhk.edu.hk"},
+			{"name": "Dartmouth Dataverse", "url": "http://dataverse.dartmouth.edu"},
+			{"name": "DaRUS", "url": "http://darus.uni-stuttgart.de"},
+			# {"name": "Data INRAe", "url": "http://data.inrae.fr"},
+			{"name": "Data Suds", "url": "http://dataverse.ird.fr"},
+			{"name": "data.sciencespo", "url": "http://data.sciencespo.fr"},
+			{"name": "Dataverse e-cienciaDatos", "url": "http://edatos.consorciomadrono.es"},
+			{"name": "DataverseNL", "url": "http://dataverse.nl"},
+			{"name": "DataverseNO", "url": "http://dataverse.no"},
+			{"name": "DR-NTU (Data)", "url": "http://researchdata.ntu.edu.sg"},
+			{"name": "Florida International University Research Data Portal", "url": "http://dataverse.fiu.edu"},
+			# {"name": "George Mason University Dataverse", "url": "http://dataverse.orc.gmu.edu"},
+			{"name": "Göttingen Research Online", "url": "http://data.goettingen-research-online.de"},
+			{"name": "Harvard Dataverse", "url": "http://dataverse.harvard.edu"},
+			{"name": "HeiDATA", "url": "http://heidata.uni-heidelberg.de"},
+			{"name": "IBICT", "url": "http://repositoriopesquisas.ibict.br"},
+			{"name": "ICRISAT", "url": "http://dataverse.icrisat.org"},
+			{"name": "IFDC Dataverse", "url": "http://dataverse.ifdc.org"},
+			{"name": "Ifsttar Dataverse", "url": "http://research-data.ifsttar.fr"},
+			{"name": "IISH Dataverse", "url": "http://datasets.iisg.amsterdam"},
+			{"name": "Institute of Russian Literature Dataverse", "url": "http://dataverse.pushdom.ru"},
+			{"name": "International Potato Center", "url": "http://data.cipotato.org"},
+			{"name": "Italian Institute of Technology (IIT)", "url": "http://dataverse.iit.it"},
+			{"name": "Johns Hopkins University", "url": "http://archive.data.jhu.edu"},
+			{"name": "Jülich DATA", "url": "http://data.fz-juelich.de"},
+			{"name": "Libra Data", "url": "http://dataverse.lib.virginia.edu"},
+			{"name": "LIPI Dataverse", "url": "http://data.lipi.go.id"},
+			{"name": "Lithuanian Data Archive for Social Sciences and Humanities (LiDA)", "url": "http://lida.dataverse.lt"},
+			{"name": "MELDATA", "url": "http://data.mel.cgiar.org"},
+			{"name": "NIE Data Repository", "url": "http://researchdata.nie.edu.sg"},
+			{"name": "NIOZ Dataverse", "url": "http://dataverse.nioz.nl"},
+			{"name": "Open Data @ UCLouvain", "url": "http://dataverse.uclouvain.be"},
+			{"name": "Open Forest Data", "url": "http://dataverse.openforestdata.pl"},
+			{"name": "Peking University", "url": "http://opendata.pku.edu.cn"},
+			{"name": "Pontificia Universidad Católica del Perú", "url": "http://datos.pucp.edu.pe"},
+			{"name": "QDR Main Collection", "url": "http://data.qdr.syr.edu"},
+			{"name": "Repositorio de datos de investigación de la Universidad de Chile", "url": "http://datos.uchile.cl"},
+			{"name": "Repositorio de Datos de Investigación Universidad del Rosario", "url": "http://research-data.urosario.edu.co"},
+			{"name": "Repositórios Piloto da Rede Nacional de Ensino e Pesquisa", "url": "http://dadosabertos.rnp.br"},
+			{"name": "RSU Dataverse", "url": "http://dataverse.rsu.lv"},
+			{"name": "Texas Data Repository Dataverse", "url": "http://dataverse.tdl.org"},
+			{"name": "UCLA Dataverse", "url": "http://dataverse.ucla.edu"},
+			{"name": "UNB Libraries Dataverse", "url": "http://dataverse.lib.unb.ca"},
+			{"name": "UNC Dataverse", "url": "http://dataverse.unc.edu"},
+			{"name": "University of Manitoba Dataverse", "url": "http://dataverse.lib.umanitoba.ca"},
+			{"name": "Università degli Studi di Milano", "url": "http://dataverse.unimi.it"},
+			{"name": "UWI", "url": "http://dataverse.sta.uwi.edu"},
+			{"name": "VTTI", "url": "http://dataverse.vtti.vt.edu"},
+			{"name": "World Agroforestry - Research Data Repository", "url": "http://data.worldagroforestry.org"},
+			{"name": "Yale-NUS Dataverse", "url": "http://dataverse.yale-nus.edu.sg"},
+		]
 
 
 # //////////////////////////////////////////////////////////////////////
 def GetJSONResponse(query_url):
 
+	# logger.info(f"GetJSONResponse {query_url}...")
 	response=requests.get(query_url,allow_redirects =True, timeout=(30, 600), verify=False)
+	# logger.info(f"GetJSONResponse {query_url} DONE")
+
 	if response.status_code!=200:
-		error_msg=f"GetJSONResponse {query_url} response.status_code={response.status_code} not valid {response.reason}"
-		logger.info(error_msg)
-		raise Exception(error_msg)
-	
+		raise Exception(f"GetJSONResponse {query_url} response.status_code={response.status_code} not valid {response.reason}")
+
 	ret=json.loads(response.text)
 
-	# check the status
 	status=ret.get('status','') 
 	if status!='OK':
-		error_msg=f"GetJSONResponse {query_url} status={status} not valid"
-		logger.info(error_msg)
-		raise Exception(error_msg)
+		raise Exception(f"GetJSONResponse {query_url} status={status} not valid")
 
 	return ret['data']
 
-# //////////////////////////////////////////////////////////////////////
-def GetNumberOfFiles(base_url):
-	try:
-		data=GetJSONResponse(f"{base_url}/api/search?q=*&type=file&start=0&per_page=1")
-		ret=int(data['total_count'])
-		logger.info(f"GetNumberOfFiles({base_url})={ret}")
-		return (ret,"")
-	except Exception as ex:
-		logger.info(f"ERROR GetNumberOfFiles({base_url}) exception {ex}")
-		return (0,str(ex))
-
 
 # //////////////////////////////////////////////////////////////////////
-def GetFiles(base_url, start, per_page=1000):
-	logger.info(f"GetFiles {base_url} {start} running...")
-
-	try:
-		files=GetJSONResponse(f"{base_url}/api/search?q=*&type=file&start={start}&per_page={per_page}&show_entity_ids=true")["items"]
-	except Exception as ex:
-		logger.info(f"ERROR in GetFiles {ex}")
-		return []
-
-	ret=[]
-	for file in files:
-		try:
-			ret.append((
-				base_url, # catalog
-				file["dataset_id"] if "dataset_id" in file else 0,  # bucket
-				file["name"],  #filename
-				file["size_in_bytes"], #size
-				file["published_at"],  # last-modification
-				file["md5"] if "md5" in file else 0
-				))
-		except Exception as ex:
-			logger.info(f"ERROR GetFiles wrong recond {ex}")
-
-	logger.info(f"GetFiles {base_url} {start} DONE")
-	return ret
-
-
-
-# //////////////////////////////////////////////////////////////////////
-def ProduceYaml(output_filename, instances, max_workers=64):
+def GetDataverseFiles(max_workers=32, per_page=1000):
 
 	"""
-	this function scrape all the following DataVerse instances and create a Yaml 'dataverse.yaml' file with the total number of files
-	if case of error, the yaml file contains an error message explaining what went wrong
+	Example of dataverse file:
+	{
+		'checksum': {'type': 'MD5', 'value': 'b8dde52d2857e9c8678bf5ce49a125ac'},
+		'dataset_citation': 'Harper, Sam, 2015, "Replication Data for: Do Mandatory V2, UNF:6:80e5IlxTWNx+fpFiP/b39g== [fileUNF]',
+		'dataset_id': '2716064',
+		'dataset_name': 'Replication Data for: Do Mandatory Seat Belt Laws Still Save Lives?',
+		'dataset_persistent_id': 'doi:10.7910/DVN/CJPYDG',
+		'description': 'Stata dataset of FARS data on motor vehicle crashes.',
+		'entity_id': 2861142,
+		'file_content_type': 'text/tab-separated-values',
+		'file_id': '2861142',
+		'file_persistent_id': 'doi:10.7910/DVN/CJPYDG/BNNDSE',
+		'file_type': 'Tab-Delimited',
+		'md5': 'b8dde52d2857e9c8678bf5ce49a125ac',
+		'name': 'fars-data.tab',
+		'published_at': '2016-07-27T20:15:32Z',
+		'size_in_bytes': 756736,
+		'type': 'file',
+		'unf': 'UNF:6:0YDFFH131CLTrL8lxvqAjQ==',
+		'url': 'https://dataverse.harvard.edu/api/access/datafile/2861142'
+	}
 	"""
 
-	with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-		results = executor.map(GetNumberOfFiles, [it["url"] for it in instances])
-		
-	for I,result in enumerate(results):
-		total,error_msg=result
-		url=instances[I]["url"]
-		instances[I]["total"]=total
-		if error_msg:
-			instances[I]["error_msg"]=error_msg
-		else:
-			instances[I].pop("error_msg", None)
-		logger.info(f"{url:48} {total:8d} {error_msg}")
-
-	with open(output_filename, 'w') as file:
-		yaml.dump(instances, file)
-
-
-# //////////////////////////////////////////////////////////////////////
-def GetAllFiles(instances, output_filename, max_workers=32, per_page=1000):
-
-	"""
-	produce a CSV file with all files from all dataverse instances
-	NOTE: I split the total-file range in several chunked request
-	      for now I do not worry too much of errors and I just ignore them
-	"""
-	
-	f=open(output_filename,"w")
-	writer=csv.writer(f)
+	instances=getDataverseInstances()
 
 	with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
 
-		TOTAL,DONE,SIZE=0,0,0
-		futures=[]
-		for I, it in enumerate(instances):
-			base_url,total=it["url"],int(it["total"])
-			TOTAL+=total
-			for start in range(0, total, per_page):
-				futures.append(executor.submit(GetFiles,base_url,start, per_page))
+		def SearchApi(base_url,start):
+			return 
 
-		logger.info(f"Total number of futures={len(futures)} TOTAL={TOTAL} per_page={per_page}")
+		# schedule the first page for all
+		tasks=[]
+		for instance in instances:
+			tasks.append((instance["url"],0,3))
 
-		for future in concurrent.futures.as_completed(futures):
-			files=future.result()
-			DONE+=len(files)
-			SIZE+=sum([it[3] for it in files])
-			logger.info(f"done {DONE}/{TOTAL} {SIZE//1024**3}GB")
-			writer.writerows(files)
-			f.flush()
+		TOTAL,DONE=0,0
+		while tasks:
+			import random
+			random.shuffle(tasks)
+
+			futures={}
+			for base_url,start,max_attempt in tasks:
+				query_url=f"{base_url}/api/search?q=*&type=file&start={start}&per_page={per_page}&show_entity_ids=true"
+				futures[executor.submit(GetJSONResponse, query_url)]=base_url, start, max_attempt, query_url
+			tasks=[]
 	
-	f.close()
+			for future in concurrent.futures.as_completed(futures):
+				base_url, start, max_attempt, query_url=futures[future]
+				try:
+					body=future.result()
+				except Exception as ex:
+					print(f'{query_url} generated an exception: {ex}')
+					if max_attempt: 
+						tasks.append((base_url,start,max_attempt-1))
+					continue
+
+				total,files=int(body['total_count']),body["items"]
+				DONE+=len(files)
+				
+				if start==0:
+					TOTAL+=total
+					for S in range(per_page, total, per_page):
+						tasks.append((base_url,S,max_attempt-1))
+						
+				logger.info(f"base_url={base_url} {start}/{total} OVERALL {DONE:,}/{TOTAL:,}")
+
+				for file in files:
+					yield base_url,file
 	
+
+# //////////////////////////////////////////////////////////////////////////////
+def NetworkCopy(src, dst, verify=False):
+
+	"""
+	See https://amalgjose.com/2020/08/13/python-program-to-stream-data-from-a-url-and-write-it-to-s3/
+	"""
+
+	logger.info(f"network-copy {src} {dst}")
+
+	# SRC (todo other cases, eg. src is S3... but in this case we can use )
+	if True:	
+		assert src.startswith("http://") or src.startswith("https://")
+		def HttpSource(url):
+			response=requests.get(str(src),stream=True, verify=verify)
+			with response as part:
+				part.raw.decode_content = True
+				yield part.raw
+		src_stream=HttpSource(src)
+
+	# DST
+	if True:
+		parsed=urllib.parse.urlparse(dst)
+		assert parsed.scheme=='s3'
+		bucket=parsed.netloc
+		key=parsed.path.lstrip("/")
+		params=urllib.parse.parse_qs(parsed.query)
+		profile=params.get("profile",[None])[0]
+		endpoint_url=params.get("endpoint-url",[os.environ.get("S3_ENDPOINT_URL")])[0]
+		session = boto3.session.Session(profile_name=profile)
+		client=session.client('s3', verify=verify,  endpoint_url=endpoint_url)
+
+	# SRC->DST
+	if True:
+		for chunk in src_stream:
+			conf=boto3.s3.transfer.TransferConfig(multipart_threshold=10000, max_concurrency=4)
+			client.upload_fileobj(chunk, bucket, key, Config=conf)
+
+
 
 
 # //////////////////////////////////////////////////////////////////////////////////
@@ -209,8 +229,8 @@ def Main():
 	"""
 	To run:
 
-	python3 nsdf/catalog/dataverse produce-yaml
-	python3 nsdf/catalog/dataverse produce-csv
+	python3 nsdf/catalog/dataverse.py get-files
+	python3 nsdf/catalog/dataverse.py stats
 
 	# copy into the bucket so that you can insert the records in clickhouse
 	# (uncomment the following lines to enable the profile...)
@@ -221,13 +241,67 @@ def Main():
 
 	action=sys.argv[1]
 
-	if action=="produce-yaml":
-		ProduceYaml('dataverse.yaml', getDataverseInstances())
+	if action=="json":
+		# catalog,bucket,filename,filesize,modified,m5
+		with open('dataverse.json', 'w') as fout:
+			for base_url, file in GetDataverseFiles():
+				file["dataverse_url"]=base_url
+				fout.write(json.dumps(file) + "\n")
+		sys.exit(0)	
 
-	elif action=="produce-csv":
-		with open('dataverse.yaml') as f:
-			instances = yaml.load(f, Loader=yaml.FullLoader)
-		GetAllFiles(instances, "dataverse.csv")
+	if action=="csv":
+		# catalog,bucket,filename,filesize,modified,m5
+		fout=open("dataverse.csv","w") 
+		fin=open('dataverse.json',"r")
+		writer=csv.writer(fout)
+		for line in fin.readlines():
+			f=json.loads(line.strip())
+			writer.writerow((f.get("dataverse_url",""), f.get("dataset_id",""), f.get("name",""), f.get("size_in_bytes",0), f.get("published_at",""), f.get("md5","")))
+		fin.close()
+		fout.close()
+		sys.exit(0)
+
+	if action=="url":
+		# catalog,bucket,filename,filesize,modified,m5
+		fout=open("dataverse.url.csv","w") 
+		fin=open('dataverse.json',"r")
+		writer=csv.writer(fout)
+		for line in fin.readlines():
+			f=json.loads(line.strip())
+			writer.writerow((f.get("url",""),))
+		fin.close()
+		fout.close()
+		sys.exit(0)
+		
+	if action=="stats":
+		# num-files=2,581,397 total-size=124,216,975,466,149 (112TB) min_file_size=0 max-file-size=389,148,288,753 
+		with open('dataverse.csv','r') as f:
+			csv_reader = csv.reader(f, delimiter=',')
+			num_files, total_size,m,M=0,0,sys.maxsize,0
+			for row in csv_reader:
+				base_url,dataset_ud,name,filesize,published,md5=row
+				filesize=max(0,int(filesize))
+				total_size+=filesize
+				num_files+=1
+				m,M=min(m, filesize),max(M, filesize)
+		print(f"num-files={num_files:,} total-size={total_size:,} ({total_size//1024**4:,}TB) min_file_size={m:,} max-file-size={M:,} ")
+		sys.exit(0)
+
+	if action=="network-copy":
+
+		"""
+export SRC=https://dataverse.harvard.edu/api/access/datafile/2861142
+export DST=s3://utah/xxxx/2861142?profile=sealstorage
+export S3_ENDPOINT_URL="https://maritime.sealstorage.io/api/v0/s3"
+python3 nsdf/catalog/dataverse.py network-copy $SRC $DST
+aws --profile sealstorage --no-verify-ssl --endpoint-url https://maritime.sealstorage.io/api/v0/s3 s3 ls utah/xxxx/
+"""
+
+		src=sys.argv[2]
+		dst=sys.argv[3]
+		NetworkCopy(src,dst)
+		sys.exit(0)
+
 
 # //////////////////////////////////////////////////////////////////////////////////
 if __name__=="__main__":
