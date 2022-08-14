@@ -153,14 +153,15 @@ def GetZenodoRecords(a,b):
 # /////////////////////////////////////////////////////
 if __name__=="__main__":
 	"""
-	python3 zenodo.py create-records
- 	python3 zenodo.py create-csv
+	python3 nsdf/catalog/zenodo.py zenodo.json
+ 	python3 nsdf/catalog/zenodo.py zenodo.csv
 	"""
    
 	action=sys.argv[1]
-   
+
+
    # /////////////////////////////////////////////////////
-	if action=="create-records":
+	if action=="zenodo.json":
 		RECORDS=[]
 		a=datetime.date(2010, 1, 1).toordinal() #  I am loosing some Zenodo records but with wrong date
 		b=datetime.datetime.today().toordinal() + 1
@@ -173,29 +174,34 @@ if __name__=="__main__":
 			except Exception as ex:
 				print(f"ERROR a={a} b={b} exception={ex}")
 
-		with open('zenodo.json', 'w') as fp:
+		with open(action, 'w') as fp:
 			json.dump(RECORDS, fp)
 	
 		print("ALl done")
 		sys.exit(0)
    
    # /////////////////////////////////////////////////////
-	if action=="create-csv":
+	if action=="zenodo.csv":
+
 		with open('zenodo.json', 'r') as fin:
 			RECORDS=json.load(fin)
 
-		with open("zenodo.csv","w")  as fout:
+		with open(action,"w")  as fout:
 			writer=csv.writer(fout)
 			num_files,tot_size=0,0
 			for record in RECORDS:
 				for f in record.get('files',[]):
+
+					def Encode(value):
+						return str(value).replace(","," ").replace("'"," ").replace('"'," ").replace("  "," ")
+					
 					writer.writerow([
-						f.get("zenodo.org",""),    # catalog
-						f.get("bucket",""),        # bucket
-						f.get("key",""),           # filename
-						f.get("size",0),           # size
-						record.get("created",""),  # creation time and/or modification time
-						f.get("checksum","")       # checksum
+						"zenodo.org",                  # catalog
+						record.get("conceptdoi","na"), # bucket
+						Encode(f.get("key","")),       # filename
+						f.get("size",0),               # size
+						record.get("created",""),      # creation time and/or modification time
+						f.get("checksum","")           # checksum
 					])   
 					num_files+=1
 					tot_size+=f.get("size",0)
