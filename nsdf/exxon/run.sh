@@ -48,8 +48,8 @@ function Convert {
     time python3 ./s3.py copy-blocks --src ${DST} --dst ${REMOTE2} --timestep ${t}
 
     # remote local2 (~0 minutes)
-    echo "# base rm -Rf ${t} "
-    time rm -Rf ${LOCAL2}
+    echo "# base clean up ${t} "
+    time rm -Rf ${LOCAL2}/visus/time_$(printf "%02d" ${t})
 
     # keep track
     mkdir -p /tmp/done
@@ -59,7 +59,7 @@ function Convert {
   fi
 }
 
-# START=0 STEP=3 ./run.sh
+# START=6 STEP=13 ./run.sh
 for (( t=${START};  t < 100 ; t+=${STEP} )) ; do 
   Convert ${t} 
 done
