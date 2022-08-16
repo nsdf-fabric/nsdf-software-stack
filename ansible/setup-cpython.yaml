@@ -7,4 +7,4 @@
   roles:
   - install_cpython
   vars:
-    - github_repository: git@github.com:nsdf-fabric/nsdf-software-stack.git
+    - example_key: example_value

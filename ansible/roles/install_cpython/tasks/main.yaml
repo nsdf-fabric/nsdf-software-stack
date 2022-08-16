@@ -39,6 +39,9 @@
     # setup number of connections
     aws configure set default.s3.max_concurrent_requests 64
 
+    # install s5cmd
+    curl -L https://github.com/peak/s5cmd/releases/download/v2.0.0/s5cmd_2.0.0_Linux-64bit.tar.gz | sudo tar xz -C /usr/bin
+
     # to produce diagrams
     apt-get install -y graphviz
 
@@ -55,18 +58,6 @@
   copy:
     src: "{{ansible_ssh_private_key_file}}"
     dest: "~/.ssh/id_rsa"
-    mode: '0700'
-
-# ////////////////////////////////////////////////
-# ////////////////////////////////////////////////
-- name: Ensures ~/.nsdf/vault dir exists
-  file: path=~/.nsdf/vault state=directory
-
-- name: Copy id_nsda to vault directory 
-  become: no
-  copy:
-    src: "{{ansible_ssh_private_key_file}}"
-    dest: "~/.nsdf/vault/id_nsdf"
     mode: '0700'
 
 # ////////////////////////////////////////////////
@@ -90,6 +81,9 @@
       - imageio
       - OpenVisusNoGui
       - scikit-image
+      - numpy
+      - scipy
+      - matplotlib 
       # in general these are not needed
       # - pandas
       # - s3fs
@@ -101,40 +95,17 @@
 
 
 # ////////////////////////////////////////////////
-- name: Fix python
+- name: Fix python wheels
   become: yes
   args:
     executable: /bin/bash
     creates: ~/.ansible.fix-python.done
   shell: |
-    python3 -m pip install --upgrade -y urllib3 requests awscli
-    python3 -m pip install --upgrade -y cryptography
-    python3 -m pip install --upgrade -y ansible
-    touch ~/.ansible.fix-python.done
-
-# ////////////////////////////////////////////////
-- name: Fix python 2
-  become: yes
-  args:
-    executable: /bin/bash
-    creates: ~/.ansible.fix-python.2.done
-  shell: |
+    python3 -m pip install --upgrade urllib3 requests awscli
+    python3 -m pip install --upgrade cryptography
+    python3 -m pip install --upgrade ansible
     python3 -m pip install --upgrade awscli
-    touch ~/.ansible.fix-python.2.done
-
-# ////////////////////////////////////////////////
-- name: install s5cmd
-  become: no
-  args:
-    executable: /bin/bash
-    creates:  ~/.ansible.s5cmd.done
-  shell: |
-    set -e # stop on errors
-    exec 2>&1 # Redirect standard error to standard out
-    sudo apt install -y golang-go
-    go get -u github.com/peakgames/s5cmd
-    touch ~/.ansible.s5cmd.done
-
+    touch ~/.ansible.fix-python.done
 
 # ////////////////////////////////////////////////
 - name: Copy bashrc.conf
@@ -144,20 +115,43 @@
     dest: "~/bashrc.conf"
     mode: '0700'
 
+- name: Source bashrc.conf
+  become: no
+  args:
+    executable: /bin/bash
+    creates: ~/.ansible.source-bashrc.done
+  shell: |
+    echo 'source ~/bashrc.conf' >> ~/.bashrc 
+    touch ~/.ansible.source-bashrc.done
+
 # ////////////////////////////////////////////////
 - name: Final setup
   become: no
   args:
     executable: /bin/bash
-    creates:~/nsdf-software-stack
+    creates: ~/.ansible.final-setup.done
   shell: |
-    set -e # stop on errors
-    exec 2>&1 # Redirect standard error to standard out
+    # stop on errors
+    set -e 
 
-    echo 'source ~/bashrc.conf' >> ~/.bashrc 
+    # Redirect standard error to standard out
+    exec 2>&1 
 
     # setup git credentials *change as needed (TODO: make it better with variables)
     git config --global user.name "Giorgio Scorzelli"
     git config --global user.email "scrgiorgio@gmail.com"
 
-    GIT_SSH_COMMAND="ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa" git clone {{ github_repository }} ./nsdf-software-stack
+    export GIT_SSH_COMMAND="ssh -o 'StrictHostKeyChecking=no' -i ~/.ssh/id_rsa" 
+
+    # vault
+    rm -Rf ~/.nsdf/vault
+    git clone git@github.com:nsdf-fabric/vault.git ~/.nsdf/vault
+    mkdir -p ~/.aws/
+    cp ~/.nsdf/vault/aws_config      ~/.aws/config
+    cp ~/.nsdf/vault/aws_credentials ~/.aws/credentials
+
+    # software stack    
+    rm -Rf ~/nsdf-software-stack
+    git clone git@github.com:nsdf-fabric/nsdf-software-stack.git ~/nsdf-software-stack
+
+    touch ~/.ansible.final-setup.done
