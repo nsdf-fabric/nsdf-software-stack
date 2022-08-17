@@ -39,4 +39,9 @@ sudo docker run -v $PWD:/pwd zricethezav/gitleaks:latest detect -v --source="/pw
 # git secrets `(`git clone https://github.com/awslabs/git-secrets && sudo make install`
 git secrets --scan -r
 git secrets --scan-history 
+
+# to remove a leaked file
+FILENAME=nsdf/exxon/test-time.ipynb
+git filter-branch --tree-filter 'rm -f $FILENAME' HEAD
+git push origin --force --all
 ```
