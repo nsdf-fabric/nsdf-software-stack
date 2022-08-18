@@ -93,8 +93,8 @@ def Preprocess(
     s_prefix = f"workflow/{key}/s/tif"
 
     # support rehentrant i.e. if I already have the tiff files avoid to reproduce them
-    s3_r = s3.listObjects(f"{rem}/{r_prefix}", verbose=False)
-    s3_s = s3.listObjects(f"{rem}/{s_prefix}", verbose=False)
+    s3_r = [obj for obj in s3.listObjectsV2(f"{rem}/{r_prefix}", verbose=False)]
+    s3_s = [obj for obj in s3.listObjectsV2(f"{rem}/{s_prefix}", verbose=False)]
 
     if summarize:
         rnum = len(s3_r)

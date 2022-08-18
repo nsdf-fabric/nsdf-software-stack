@@ -54,15 +54,15 @@ class AWSOpenDataCatalog:
 		bucket_name=args['bucket_name']
 		return "{}/{}".format(self.name,bucket_name)
 
-	# listObjects
-	def listObjects(self,args):
+	# listCatalogObjects
+	def listCatalogObjects(self,args):
 		bucket_name=args['bucket_name']
 		endpoint_url=args['endpoint_url']
 
 		T1=time.time()
 		t1=time.time()
 
-		# logger.info("AWSOpenDataCatalog::listObjects BEGIN bucket_name({bucket_name}) endpoint_url({endpoint_url})")
+		# logger.info("AWSOpenDataCatalog::listCatalogObjects BEGIN bucket_name({bucket_name}) endpoint_url({endpoint_url})")
 
 		# NOTE for some I would need --request-payer requester
 		self.s3 = boto3.resource('s3')
@@ -98,7 +98,7 @@ class AWSOpenDataCatalog:
 					BYTES+=size
 
 			if (time.time()-t1)>20.0:
-				logger.info(f"...(cont.) AWSOpenDataCatalog::listObjects CONT bucket_name({bucket_name}) endpoint_url({endpoint_url}) #({COUNT}) size({StringFileSize(BYTES)}) {int(time.time()-T1)} seconds")
+				logger.info(f"...(cont.) AWSOpenDataCatalog::listCatalogObjects CONT bucket_name({bucket_name}) endpoint_url({endpoint_url}) #({COUNT}) size({StringFileSize(BYTES)}) {int(time.time()-T1)} seconds")
 				t1=time.time()
 
 			# try the continuation
@@ -107,7 +107,7 @@ class AWSOpenDataCatalog:
 			except KeyError:
 				break
 
-		logger.info(f"AWSOpenDataCatalog::listObjects bucket_name({bucket_name}) endpoint_url({endpoint_url}) #({COUNT}) size({StringFileSize(BYTES)}) done in {int(time.time()-T1)} seconds")
+		logger.info(f"AWSOpenDataCatalog::listCatalogObjects bucket_name({bucket_name}) endpoint_url({endpoint_url}) #({COUNT}) size({StringFileSize(BYTES)}) done in {int(time.time()-T1)} seconds")
 		return ret
 
 

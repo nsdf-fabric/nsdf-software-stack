@@ -61,8 +61,8 @@ class DigitalRocksPortalCatalog:
 				self.BYTES+=int(response.headers.get('Content-Length',0))
 		return ret
 
-	# listObjects
-	def listObjects(self,args):
+	# listCatalogObjects
+	def listCatalogObjects(self,args):
 		t1=time.time()
 		project=args["project"]
 		ret=[]
@@ -71,6 +71,6 @@ class DigitalRocksPortalCatalog:
 		for origin_data in self.__getOriginData(project):
 			ret.extend(self.__getFiles(project,origin_data))
 		sec=time.time()-t1
-		logger.info(f"DigitalRocksPortalCatalog::listObjects END project({project}) #({self.COUNT}) size({StringFileSize(self.BYTES)}) {sec} seconds")
+		logger.info(f"DigitalRocksPortalCatalog::listCatalogObjects END project({project}) #({self.COUNT}) size({StringFileSize(self.BYTES)}) {sec} seconds")
 		return ret
 

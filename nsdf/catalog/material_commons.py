@@ -28,8 +28,8 @@ class MaterialCommonsCatalog:
 		dataset_id=args["dataset_id"]
 		return "{}/{}".format(self.name,dataset_id)
 
-	# listObjects
-	def listObjects(self,args):
+	# listCatalogObjects
+	def listCatalogObjects(self,args):
 		dataset_id=args["dataset_id"]
 		client=mcapi.Client(self.token)
 		files = client.get_published_dataset_files(dataset_id)
@@ -45,7 +45,7 @@ class MaterialCommonsCatalog:
 				file.checksum])
 			BYTES+=file.size
 			COUNT+=1
-		logger.info(f"MaterialCommonsCatalog::listObjects END dataset_id({dataset_id}) #({COUNT}) size({StringFileSize(BYTES)})")
+		logger.info(f"MaterialCommonsCatalog::listCatalogObjects END dataset_id({dataset_id}) #({COUNT}) size({StringFileSize(BYTES)})")
 		return ret
 
 

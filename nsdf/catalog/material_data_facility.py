@@ -27,8 +27,8 @@ class MaterialDataFacility:
 	def getDatasetKey(self,args):
 		return "{}/{}".format(self.name,args["source_id"])
 
-	# listObjects
-	def listObjects(self,args):
+	# listCatalogObjects
+	def listCatalogObjects(self,args):
 		t1=time.time()
 		source_id=args["source_id"]
 		source_name=args["source_name"]
@@ -64,5 +64,5 @@ class MaterialDataFacility:
 				tot_size+=int(file['length'])
 				tot_files+=1
 		sec=time.time()-t1
-		logger.info(f"MaterialCommonsCatalog::listObjects END source_id({source_id}) tot_files({tot_files}) tot_size({StringFileSize(tot_size)}) {sec} seconds")
+		logger.info(f"MaterialCommonsCatalog::listCatalogObjects END source_id({source_id}) tot_files({tot_files}) tot_size({StringFileSize(tot_size)}) {sec} seconds")
 		return ret
