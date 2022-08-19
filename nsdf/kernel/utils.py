@@ -1,5 +1,4 @@
 import sys,shutil,os,time,logging, shlex,time,subprocess,io,threading, queue
-from urllib.request import AbstractBasicAuthHandler
 
 logger = logging.getLogger("nsdf")
 
@@ -147,28 +146,22 @@ def RunCommand(logger, name, cmd, verbose=False, nretry=3):
 	logger.info(f"RunCommand [{name}] {args} done in {sec} seconds")
 
 
+
+
 # /////////////////////////////////////////////////////////
 class S3:
 
 	# constructor
-	def __init__(self,logger=None,aws_profile=None,endpoint_url=None):
+	def __init__(self,logger):
+               # os.environ['AWS_ACCESS_KEY_ID'] = '679JYS0BFPLDDA3C975U'
 		import boto3 
-		from nsdf.kernel import logger as nsdf_logger
-		self.logger=logger if logger else nsdf_logger
-
-		endpoint_url=os.environ.get("AWS_ENDPOINT_URL",None) if not endpoint_url else endpoint_url
-		aws_profile=os.environ.get("AWS_PROFILE",None) if not aws_profile else aws_profile
-		region_name=os.environ.get("AWS_DEFAULT_REGION",None)
-		aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID",None)
-		aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY",None)
-
-		self.session=boto3.session.Session(
-			profile_name=aws_profile,
-			aws_access_key_id=aws_access_key_id,
-			aws_secret_access_key=aws_secret_access_key,
-			region_name=region_name)
-
-		self.client=self.session.client('s3',endpoint_url=endpoint_url)
+		self.logger=logger
+		self.session=boto3.session.Session()
+		self.s3=self.session.client('s3',
+			aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"], 
+			aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"], 
+			region_name=os.environ["AWS_DEFAULT_REGION"],
+			endpoint_url=os.environ["AWS_ENDPOINT_URL"])
 
 	# __normalize_url
 	@staticmethod
@@ -176,14 +169,8 @@ class S3:
 		assert url.startswith("s3://")
 		url=url[len("s3://"):]
 		# remove any path
-		v=url.split("/",1)
-		bucket=v[0]
-		key=v[1] if len(v)==2 else ""
+		bucket,key=url.split("/",1)
 		return (bucket,key)
-
-	@staticmethod
-	def GetBucket(url):
-		return S3.NormalizeUrl(url)[0]
 
 	# createBucket
 	def createBucket(self,bucket_name):
@@ -198,7 +185,7 @@ class S3:
 		os.makedirs( os.path.dirname(filename), exist_ok=True)	
 		for retry in range(nretries):
 			try:
-				self.client.download_file(bucket, key, filename)
+				self.s3.download_file(bucket, key, filename)
 				break
 			except:
 				if retry==(nretries-1):
@@ -215,7 +202,7 @@ class S3:
 	def putObject(self, binary_data, url):
 		bucket,key=S3.NormalizeUrl(url)
 		t1=time.time()
-		self.client.put_object(Bucket=bucket, Key=key,Body=binary_data)
+		self.s3.put_object(Bucket=bucket, Key=key,Body=binary_data)
 		sec=time.time()-t1
 		self.logger.info(f"s3-put-object {url} done in {sec} seconds")
 
@@ -224,7 +211,7 @@ class S3:
 		bucket,key=S3.NormalizeUrl(url)
 		size_mb=os.path.getsize(filename)//(1024*1024)
 		t1=time.time()
-		self.client.upload_file(filename, bucket, key)
+		self.s3.upload_file(filename, bucket, key)
 		# assert self.existObject(key)
 		sec=time.time()-t1
 		self.logger.info(f"s3-upload-file {filename} {url} {size_mb}MiB done in {sec} seconds")
@@ -233,7 +220,7 @@ class S3:
 	def existObject(self, url):
 		bucket,key=S3.NormalizeUrl(url)
 		try:
-			self.client.head_object(Bucket=bucket, Key=key)
+			self.s3.head_object(Bucket=bucket, Key=key)
 			return True
 		except:
 			return False
@@ -244,49 +231,40 @@ class S3:
 		t1=time.time()
 		self.logger.info(f"S3 deleting folder {url}...")
 		while True:
-			filtered = self.client.list_objects(Bucket=bucket, Prefix=f"{folder}/").get('Contents', [])
+			filtered = self.s3.list_objects(Bucket=bucket, Prefix=f"{folder}/").get('Contents', [])
 			if len(filtered)==0:
 				break
-			self.client.delete_objects(Bucket=bucket, Delete={'Objects' : [{'Key' : obj['Key'] } for obj in filtered]})
+			self.s3.delete_objects(Bucket=bucket, Delete={'Objects' : [{'Key' : obj['Key'] } for obj in filtered]})
 		
 		sec=time.time()-t1
 		self.logger.info(f"S3 delete folder {url} done in {sec} seconds")
 
-
-	def listFolders(self,url, recursive=False):
-		bucket,folder=S3.NormalizeUrl(url)
-		if folder: folder=folder.rstrip("/") + "/" # for non-root make sure it ends wiht /
-		paginator = self.client.get_paginator('list_objects_v2')
-		pages = paginator.paginate(Bucket=bucket, Prefix=folder, Delimiter='/') 
-		for page in pages:
-			for obj in page.get('CommonPrefixes',[]):
-				sub=os.path.join("s3://",bucket,obj['Prefix'])
-				yield sub
-				if recursive:
-					yield from self.listFolders(sub,True)
-			break
-
-	def listObjectsV2(self, url, verbose=True):
+	# listObjects (recursive!)
+	def listObjects(self, url, what=None,verbose=True):
 		bucket,folder=S3.NormalizeUrl(url)
 		t1=time.time()
 		if verbose:
 			self.logger.info(f"S3 list folder {url}...")
-		paginator = self.client.get_paginator('list_objects_v2')
-		pages = paginator.paginate(Bucket=bucket, Prefix=folder) 
-		N=0
+		paginator = self.s3.get_paginator('list_objects_v2')
+		pages = paginator.paginate(Bucket=bucket, Prefix=folder) if folder is not None else paginator.paginate(Bucket=bucket)
+		ret=[]
 		for page in pages:
-			for obj in page.get('Contents',[]):
-				N+=1
-				yield obj
+			for obj in page['Contents'] if 'Contents' in page else []:
+
+				if what=="url":
+					ret.append(f"s3://{bucket}/{obj['Key']}")
+				else:
+					ret.append(obj)
 		if verbose:
 			sec=time.time()-t1
-			self.logger.info(f"S3 list folder {url} done in {sec}seconds num({N})")
+			self.logger.info(f"S3 list folder {url} done in {sec}seconds num({len(ret)})")
+		return ret
 
 	# downloadImage
 	def downloadImage(self, url):
 		bucket,key=S3.NormalizeUrl(url)
 		t1=time.time()
-		body = self.client.get_object(Bucket=bucket, Key=key)['Body'].read()
+		body = self.s3.get_object(Bucket=bucket, Key=key)['Body'].read()
 		import imageio
 		ret=imageio.imread(io.BytesIO(body))
 		sec=time.time()-t1
@@ -303,7 +281,7 @@ class S3:
 		ext = os.path.splitext(key)[-1].strip('.').upper()
 		img.save(buffer, ext)
 		buffer.seek(0)
-		ret = self.client.put_object(Bucket=self.bucket, Key=key, Body=buffer)
+		ret = self.s3.put_object(Bucket=self.bucket, Key=key, Body=buffer)
 		assert ret['ResponseMetadata']['HTTPStatusCode'] == 200
 		sec=time.time()-t1
 		logger.info(f"s3=upload-image {url} done in {sec} seconds")
@@ -326,12 +304,11 @@ def S3Sync(logger, name, src, dst):
 
 
 # /////////////////////////////////////////////////////////////////
-class S3Uploader:
-
+class S3Uploader:  
 	# construct
 	def __init__(self,logger, num_connections=1):
 		
-		self.q = queue.Queue()
+		self.q = queue.Queue(maxsize=8)
 		self.s3=S3(logger)
 
 		self.num_connections=num_connections
@@ -343,7 +320,10 @@ class S3Uploader:
 
 	# put
 	def put(self,local,remote):
-		self.q.put((local,remote))
+		if self.q.full():
+			time.sleep(1)
+		else:
+			self.q.put((local,remote))
 
 	# waitAndExit
 	def waitAndExit(self):
@@ -352,17 +332,22 @@ class S3Uploader:
 		self.q.join()
 
 	# runLoopInBackground
+
 	def runLoopInBackground(self):
 		while True:
-			local,remote = self.q.get()
-			if local and remote:
-				t1=time.time()
-				self.s3.uploadObject(local,remote)
-				sec=time.time()-t1
-				print(f"Uploaded file {local} in {sec} seconds")
-			self.q.task_done()
-			if local is None: 
-				break
+			if self.q.empty():
+				time.sleep(1)
+			else:
+				local,remote = self.q.get()
+				if local and remote:
+					#t1=time.time()
+					self.s3.uploadObject(local,remote)
+					#sec=time.time()-t1
+					#print(f"Uploaded file {local} in {sec} seconds")
+				self.q.task_done()
+				if local is None: 
+					break
+
 
 
 # ////////////////////////////////////////////////////////////////////////
