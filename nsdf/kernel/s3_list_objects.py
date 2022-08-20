@@ -4,8 +4,10 @@ import multiprocessing
 import time
 import threading
 import queue
-from nsdf.kernel import S3, logger, SetupLogger
 from pprint import pprint
+
+from nsdf.kernel import logger
+from nsdf.kernel import S3
 
 if False:
 	# SQL LITE EXAMPLE
@@ -160,25 +162,23 @@ class ListObjects:
 		self.q=queue.Queue()
   
 		self.t1=time.time()
+		self.T1=time.time()  
 		self.tot_folders=0
 		self.tot_files=0
 		self.num_requests=0
-		self.last_total=0
   
 		self.bucket, up_prefix=S3.NormalizeUrl(self.s3_url)
 		self.know_prefixes=set()
-		self.out_folders=open("./folders.json","w")
-		self.out_files=open("./files.json","w")
+		self.out=open("./objects.json","w")
   
 		self.workers=[]
 		for n in range(nworkers):
 			self.startWorker(f"thread-list-files-{n:02d}",self.listObjects)
    
-		self.addFolder({'Prefix': up_prefix})
+		self.addFolders([{'Prefix': up_prefix}])
 
 	def __del__(self):
-		self.out_folders.close()
-		self.out_files.close()
+		self.out.close()
 
 	def startWorker(self,name,fn):
 		worker = threading.Thread(name=name,target=fn)
@@ -187,110 +187,53 @@ class ListObjects:
   
 	def printStatistics(self):
 		t2=time.time()
-		if t2-self.t1<10.0: return
-		sec=t2-self.t1
-		tot=self.tot_folders+ self.tot_files
-		objects_per_sec=int((tot-self.last_total)/sec)
-		logger.info(f"printStatistics tot-folders={self.tot_folders} tot-files={self.tot_files} num-requests={self.num_requests} objects-per-sec={objects_per_sec}")
+		if t2-self.t1<3.0: return
+		SEC=t2-self.T1
+		TOT=self.tot_folders+ self.tot_files
+		logger.info(f"printStatistics tot-folders={self.tot_folders} tot-files={self.tot_files} num-requests={self.num_requests} objects-per-sec={int(TOT/SEC)}")
 		self.t1=time.time()
-		self.last_total=tot
 
-  
-	def addFolder(self,folder):
-		logger.debug(f"addFolder {folder}")
-		prefix=folder['Prefix']
-
+	def addFolders(self,folders):
+		if not folders: return
+		logger.debug(f"addFolders {len(folders)}")
 		with self.lock:
-      
-			# already processed?
-			if prefix in self.know_prefixes: 
-				return
-
-			self.know_prefixes.add(prefix)
-      
-			self.tot_folders+=1
-			if self.out_folders:
-				self.out_folders.write(os.path.join("s3://",self.bucket, prefix) + "\n")
-    
-			# need to do the traversal
-			self.q.put(folder)
-   
+			self.num_requests+=1
+			for folder in folders:
+				prefix=folder['Prefix']
+				if prefix in self.know_prefixes: 
+					continue
+				self.know_prefixes.add(prefix)
+				if self.out:
+					self.out.write(json.dumps(folder, default=str) + "\n")
+				self.q.put(folder)
+			self.tot_folders+=len(folders)
 			self.printStatistics()
 
-	def addFile(self, file):
-		logger.debug(f"addFile {file}")
+	def addFiles(self, files):
+		if not files: return
+		logger.debug(f"addFiles {len(files)}")
 		with self.lock:
-			self.tot_files+=1
-   
-			if self.out_files:
-				self.out_files.write(json.dumps(file, default=str) + "\n")
-    
+			self.num_requests+=1
+			if self.out:
+				self.out.writelines([json.dumps(file, default=str) for file in files])
+			self.tot_files+=len(files)
 			self.printStatistics()
 
 	def listObjects(self):
-     
 		while True:
-      
 			folder=self.q.get()
-			if folder is None:
-				return
-
+			if folder is None: return
 			prefix=folder['Prefix']
-
-			paginator = s3.client.get_paginator('list_objects_v2')
+			paginator = self.s3.client.get_paginator('list_objects_v2')
 			pages = paginator.paginate(Bucket=self.bucket, Prefix=prefix, Delimiter='/', MaxKeys=1000) # cann be more than 1000 
-			tot_files_in_prefix=0
+			tot_files,tot_folders=0,0
 			for P,page in enumerate(pages):
-       
-				with self.lock:
-					self.num_requests+=1
-       
-				prefixes=page.get('CommonPrefixes',[])
+				folders=page.get('CommonPrefixes',[])
 				files=page.get('Contents',[])
-				tot_files_in_prefix+=len(files)
+				self.addFolders(folders)
+				self.addFiles(files)
+				tot_folders+=len(folders)
+				tot_files+=len(files)
+				logger.debug(f"listObjects prefix={prefix} page-num={P} num-folders={len(folders)}/{tot_folders} num-files={len(files)}/{tot_files}")
 	
-				logger.debug(f"listObjects prefix={prefix} page-num={P} num-sub-prefixes={len(prefixes)} num-files-in-page={len(files)} tot-files-in-prefix={tot_files_in_prefix}")
-	
-				# is it a folder?
-				for folder in prefixes:
-					self.addFolder(folder)
-	
-				# is it an file?
-				for file in files:
-					self.addFile(file)
-     
-
-
-# ///////////////////////////////////////////////////
-if True:
-	# setup logging
-
-	import logging
-	SetupLogger(logger, level=logging.INFO, handlers=[logging.StreamHandler()])
-
-	action=sys.argv[1]
- 
-	if action=="lines-per-sec":
-		N,T1,t1 = 0,time.time(),time.time()
-		for line in sys.stdin:
-			N+=1
-			now=time.time()
-			if (now-t1)>2.0:
-				t1=now
-				sec = now - T1
-				print(f"Elapsed time={sec} lines={N:,} lps={N//sec}")
-		sys.exit(0)
-	
-
-	if action=="list-objects":
-		# python3 list_objects.py list-objects
-		nworkers=48
-		# redis_server = redis.StrictRedis('localhost',6379, charset="utf-8", decode_responses=True)
-		s3=S3(aws_profile="wasabi", endpoint_url="https://s3.us-west-1.wasabisys.com") 
-		# s3=S3(aws_profile="sealstorage", endpoint_url="https://maritime.sealstorage.io/api/v0/s3") 
-		ls=ListObjects(s3, "s3://Pania_2021Q3_in_situ_data",nworkers)
-		time.sleep(3600*24*365)
-		sys.exit(0)
-	#
-
 
