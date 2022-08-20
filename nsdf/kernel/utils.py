@@ -189,7 +189,24 @@ class S3:
 	def createBucket(self,bucket_name):
 		self.self.create_bucket(Bucket=bucket_name)
 
-	# downloadObject
+	# remote -> memory
+	def getObject(self,url):
+		bucket,key=S3.NormalizeUrl(url)
+		t1=time.time()
+		body = self.client.get_object(Bucket=bucket, Key=key)['Body'].read()
+		self.logger.info(f"s3-get_object {key} done in {time.time()-t1} seconds")
+		return body
+
+	# memory -> remote
+	def putObject(self, url, binary_data):
+		bucket,key=S3.NormalizeUrl(url)
+		t1=time.time()
+		ret=self.client.put_object(Bucket=bucket, Key=key,Body=binary_data)
+		assert ret['ResponseMetadata']['HTTPStatusCode'] == 200
+		sec=time.time()-t1
+		self.logger.info(f"s3-put-object {url} done in {sec} seconds")
+
+	# remote->local
 	def downloadObject(self, url, filename, force=False,nretries=5):
 		bucket,key=S3.NormalizeUrl(url)
 		if not force and os.path.isfile(filename): return 
@@ -211,15 +228,7 @@ class S3:
 		sec=time.time()-t1
 		self.logger.info(f"s3-download-file {url} {filename}  {size_mb} MiB done in {sec} seconds")
 
-	# putObject
-	def putObject(self, binary_data, url):
-		bucket,key=S3.NormalizeUrl(url)
-		t1=time.time()
-		self.client.put_object(Bucket=bucket, Key=key,Body=binary_data)
-		sec=time.time()-t1
-		self.logger.info(f"s3-put-object {url} done in {sec} seconds")
-
-	# uploadObject
+	# local -> remote
 	def uploadObject(self, filename, url):
 		bucket,key=S3.NormalizeUrl(url)
 		size_mb=os.path.getsize(filename)//(1024*1024)
@@ -252,7 +261,7 @@ class S3:
 		sec=time.time()-t1
 		self.logger.info(f"S3 delete folder {url} done in {sec} seconds")
 
-
+	# only folders, no fonderls
 	def listFolders(self,url, recursive=False):
 		bucket,folder=S3.NormalizeUrl(url)
 		if folder: folder=folder.rstrip("/") + "/" # for non-root make sure it ends wiht /
@@ -266,7 +275,8 @@ class S3:
 					yield from self.listFolders(sub,True)
 			break
 
-	def listObjectsV2(self, url, verbose=True):
+	# only objects, no fonderls
+	def listObjects(self, url, verbose=True):
 		bucket,folder=S3.NormalizeUrl(url)
 		t1=time.time()
 		if verbose:
@@ -284,29 +294,19 @@ class S3:
 
 	# downloadImage
 	def downloadImage(self, url):
-		bucket,key=S3.NormalizeUrl(url)
-		t1=time.time()
-		body = self.client.get_object(Bucket=bucket, Key=key)['Body'].read()
 		import imageio
-		ret=imageio.imread(io.BytesIO(body))
-		sec=time.time()-t1
-		self.logger.info(f"s3-download-image {key} done in {sec} seconds")
+		ret=imageio.imread(io.BytesIO(self.getObject(url)))
 		return ret
 
 	# uploadImage ()
 	def uploadImage(self, img, url):
 		assert(False) # this function must be tested
 		bucket,key=S3.NormalizeUrl(url)
-		t1=time.time()
-		self.logger.info(f"S3 uploading image to {url}...")
 		buffer = io.BytesIO()
 		ext = os.path.splitext(key)[-1].strip('.').upper()
 		img.save(buffer, ext)
 		buffer.seek(0)
-		ret = self.client.put_object(Bucket=self.bucket, Key=key, Body=buffer)
-		assert ret['ResponseMetadata']['HTTPStatusCode'] == 200
-		sec=time.time()-t1
-		logger.info(f"s3=upload-image {url} done in {sec} seconds")
+		self.putObject(url, buffer)
 
 
 # ////////////////////////////////////////////////////////////////////////
@@ -377,7 +377,7 @@ def TouchFile(filename):
 	if FileExists(filename):
 		return
 	if filename.startswith("s3://"):
-		S3(logger).putObject("0",filename) # I don't think I can have zero-byte size on S3
+		S3(logger).putObject(filename,"0") # I don't think I can have zero-byte size on S3
 	else:
 		open(filename, 'a').close()
 
