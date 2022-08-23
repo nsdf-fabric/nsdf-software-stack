@@ -6,14 +6,12 @@ from .s3 import S3
 class S3Uploader:
 
 	# construct
-	def __init__(self,logger, num_connections=1):
+	def __init__(self,s3):
 		
 		self.q = queue.Queue()
-		self.s3=S3(logger)
-
-		self.num_connections=num_connections
+		self.s3=s3
 		self.threads=[]
-		for I in range(self.num_connections):
+		for I in range(self.s3.num_connections):
 			thread=threading.Thread(target=self.runLoopInBackground, daemon=True)
 			self.threads.append(thread)
 			thread.start()
@@ -24,7 +22,7 @@ class S3Uploader:
 
 	# waitAndExit
 	def waitAndExit(self):
-		for I in range(self.num_connections):
+		for I in range(self.s3.num_connections):
 			self.put(None,None)
 		self.q.join()
 

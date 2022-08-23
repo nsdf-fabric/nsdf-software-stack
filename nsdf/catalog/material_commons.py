@@ -2,7 +2,7 @@ import materials_commons.api as mcapi
 
 import os
 
-from nsdf.kernel import StringFileSize, logger
+from nsdf.kernel import HumanSize, logger
 
 # /////////////////////////////////////////////////////////////////////
 class MaterialCommonsCatalog:
@@ -45,7 +45,7 @@ class MaterialCommonsCatalog:
 				file.checksum])
 			BYTES+=file.size
 			COUNT+=1
-		logger.info(f"MaterialCommonsCatalog::listCatalogObjects END dataset_id({dataset_id}) #({COUNT}) size({StringFileSize(BYTES)})")
+		logger.info(f"MaterialCommonsCatalog::listCatalogObjects END dataset_id({dataset_id}) #({COUNT}) size({HumanSize(BYTES)})")
 		return ret
 
 

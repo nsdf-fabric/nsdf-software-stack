@@ -14,7 +14,8 @@ from pprint import pprint
 import prefect
 from prefect import Flow, Parameter, Task, task, unmapped
 
-from nsdf.kernel import logger, LoadYaml, rmfile, S3, GetPackageFilename, S3Sync, RunCommand, SetupLogger, LoadYaml
+from nsdf.kernel import logger, LoadYaml, rmfile, GetPackageFilename, RunCommand, SetupLogger, LoadYaml
+from nsdf.s3 import S3,S3Sync, S3ParseUrl
 from nsdf.distributed import NSDFDaskCluster
 
 
@@ -83,8 +84,8 @@ def Preprocess(
 
     rotation_center = float(rotation_center)
 
-    s3 = S3(logger)
-    bucket, key = S3.NormalizeUrl(rem_hdf5)
+    s3 = S3(num_connections=uploader_num_connections)
+    bucket, key, qs = S3ParseUrl(rem_hdf5)
     key = os.path.basename(key)
 
     loc_hdf5 = f"{loc}/hdf5/{key}"
@@ -93,8 +94,8 @@ def Preprocess(
     s_prefix = f"workflow/{key}/s/tif"
 
     # support rehentrant i.e. if I already have the tiff files avoid to reproduce them
-    s3_r = [obj for obj in s3.listObjectsV2(f"{rem}/{r_prefix}", verbose=False)]
-    s3_s = [obj for obj in s3.listObjectsV2(f"{rem}/{s_prefix}", verbose=False)]
+    s3_r = [obj for obj in s3.listObjects(f"{rem}/{r_prefix}", verbose=False)]
+    s3_s = [obj for obj in s3.listObjects(f"{rem}/{s_prefix}", verbose=False)]
 
     if summarize:
         rnum = len(s3_r)
@@ -109,8 +110,8 @@ def Preprocess(
     logger.info(
         f" Preprocess hdf5({rem_hdf5}) rotation-center({rotation_center}) slice-range({slice_range}) recontructions({len(s3_r)}/{tot_slices}) segmentations({len(s3_s)}/{tot_slices}) ...")
 
-    from nsdf.kernel import S3Uploader
-    uploader = S3Uploader(logger, uploader_num_connections)
+    from nsdf.s3 import S3Uploader
+    uploader = S3Uploader(s3)
 
     white_universal = None
     trained_model = None
@@ -159,8 +160,7 @@ def Preprocess(
                                 t1 = time.time()
                                 logger.info(f"Loading white...")
                                 white_key = "fly_scan_id_112509.h5"
-                                s3.downloadObject(
-                                    f"s3://Pania_2021Q3_in_situ_data/hdf5/{white_key}", f"{loc}/hdf5/{white_key}")
+                                s3.downloadObject(f"s3://Pania_2021Q3_in_situ_data/hdf5/{white_key}", f"{loc}/hdf5/{white_key}")
                                 import h5py
                                 Data_Universal = h5py.File(
                                     f"{loc}/hdf5/{white_key}", 'r')
@@ -384,7 +384,7 @@ def PreprocessMain(workflow):
 
 
 def CheckObjectExist(it):
-    s3 = S3(logger)
+    s3 = S3()
     return (it["creates"], s3.existObject(it["creates"]))
 
 
@@ -426,7 +426,7 @@ def ConvertImageStackMain(workflow):
     ARGS = []
     for file in files:
 
-        bucket, key = S3.NormalizeUrl(file["url"])
+        bucket, key, qs = S3ParseUrl(file["url"])
         key = os.path.basename(key)
 
         whats = []

@@ -48,7 +48,7 @@ class SendLogsToCentralHost(logging.handlers.SocketHandler):
 	
 	def __init__(self, central_host, central_port):
 		super().__init__(central_host,central_port)
-		from nsdf.kernel import GetWorkerId
+		from nsdf.kernel import 
 		self.worker_id=GetWorkerId()
 
 	def emit(self, record):

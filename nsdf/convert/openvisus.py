@@ -3,7 +3,8 @@ from multiprocessing.pool import ThreadPool
 
 import OpenVisus as ov
 
-from nsdf.kernel import logger, S3, S3Sync, FileExists, TouchFile, SafeReplaceFile,rmdir
+from nsdf.kernel import logger, FileExists, TouchFile, SafeReplaceFile,rmdir
+from nsdf.s3 import S3, S3Sync
 
 # ////////////////////////////////////////////////////////////////////////////////////////
 """

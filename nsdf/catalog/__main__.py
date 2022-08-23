@@ -1,6 +1,6 @@
 import os, sys, base64, glob, subprocess, time, logging, datetime
 from   pprint import pprint
-from   nsdf.kernel import logger, WriteCSV, StringFileSize, S3, SetupLogger, LoadYaml, FileExists
+from   nsdf.kernel import logger, WriteCSV, HumanSize, S3, SetupLogger, LoadYaml, FileExists,NormalizeEnv, PrintEnv, SetEnv
 
 from prefect import task, Flow, unmapped
 
@@ -33,36 +33,35 @@ def ListDatasetsTask(catalog):
 		# raise 
 
 # ///////////////////////////////////////////////////////////
-def ListObjects(catalog, dataset, loc, rem, dry_run=False):
+def ListCatalogObjects(catalog, dataset, loc, rem, dry_run=False):
 
 	key=catalog.getDatasetKey(dataset)
 	loc=loc.format(key=catalog.getDatasetKey(dataset))
 	rem=rem.format(key=catalog.getDatasetKey(dataset))
 
-	logger.info(f"ListObjects catalog={catalog} dataset={dataset} loc={loc} rem={rem}...")
+	logger.info(f"ListCatalogObjects catalog={catalog} dataset={dataset} loc={loc} rem={rem}...")
 	if dry_run:
 		return
 
-	s3=S3(logger)
-
+	s3=S3()
 	if s3.existObject(rem):
 		logger.info(f"{rem} already exists. No need to recreate it")
 		return
 
 	t1=time.time()
-	objects=catalog.listObjects(dataset)
+	objects=catalog.listCatalogObjects(dataset)
 	WriteCSV(loc,objects)
-	filesize=StringFileSize(os.path.getsize(loc))
-	logger.info(f"ListObjectsToCsvTask dataset({dataset}) loc({loc}) rem({rem}) #({len(objects)}) file_size({filesize}) {int(time.time()-t1)} seconds")
+	filesize=HumanSize(os.path.getsize(loc))
+	logger.info(f"ListCatalogObjectsToCsvTask dataset({dataset}) loc({loc}) rem({rem}) #({len(objects)}) file_size({filesize}) {int(time.time()-t1)} seconds")
 	s3.uploadObject(loc, rem)
 
 @task
-def ListObjectsTask(catalog, dataset, loc, rem, dry_run=False):
+def ListCatalogObjectsTask(catalog, dataset, loc, rem, dry_run=False):
 	try:
-		return ListObjects(catalog, dataset, loc, rem, dry_run=dry_run)
+		return ListCatalogObjects(catalog, dataset, loc, rem, dry_run=dry_run)
 	except Exception as ex:
 		import traceback
-		logger.info(f"ListObjectsTask Error: {traceback.format_exc()}")
+		logger.info(f"ListCatalogObjectsTask Error: {traceback.format_exc()}")
 		# better to continue anyway?
 		# raise
 
@@ -83,7 +82,6 @@ if __name__=="__main__":
 
 	# enviroment from the workflow
 	if True:
-		from nsdf.kernel import NormalizeEnv, PrintEnv, SetEnv
 		env=NormalizeEnv(workflow["env"])
 		if "export-env" in sys.argv:
 			PrintEnv(env)
@@ -112,7 +110,7 @@ if __name__=="__main__":
 	# _______________________________________________
 	def Summarize(num_threads=128):
 		from multiprocessing.pool import ThreadPool
-		s3=S3(logger)
+		s3=S3()
 		p = ThreadPool()
 		datasets=p.map(ListDatasets,catalogs)
 		ARGS=[]
@@ -153,7 +151,7 @@ if __name__=="__main__":
 			with Flow("nsdf-catalog") as flow:
 				for catalog,dataset,exist in Summarize():
 					if exist: continue
-					tasks.append(ListObjectsTask(catalog=catalog, dataset=dataset, 
+					tasks.append(ListCatalogObjectsTask(catalog=catalog, dataset=dataset, 
 						loc=loc + "/csv/{key}.csv",
 						rem=rem + "/csv/{key}.csv"))
 
@@ -164,6 +162,6 @@ if __name__=="__main__":
 	else:
 		for catalog,dataset,exist in Summarize():
 			if exist: continue
-			ListObjects(catalog, dataset, 
+			ListCatalogObjects(catalog, dataset, 
 				loc + "/csv/{key}.csv", 
 				rem + "/csv/{key}.csv")

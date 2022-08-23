@@ -1,4 +1,4 @@
-from .utils import RunCommand
+from nsdf.kernel import RunCommand
 import os
 
 

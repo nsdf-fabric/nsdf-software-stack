@@ -4,7 +4,7 @@ from   urllib.parse import urlparse
 # for HTML parsing
 from bs4 import BeautifulSoup
 
-from nsdf.kernel import logger, StringFileSize
+from nsdf.kernel import logger, HumanSize
 
 # ///////////////////////////////////////////////////////////////////////
 class DigitalRocksPortalCatalog:
@@ -71,6 +71,6 @@ class DigitalRocksPortalCatalog:
 		for origin_data in self.__getOriginData(project):
 			ret.extend(self.__getFiles(project,origin_data))
 		sec=time.time()-t1
-		logger.info(f"DigitalRocksPortalCatalog::listCatalogObjects END project({project}) #({self.COUNT}) size({StringFileSize(self.BYTES)}) {sec} seconds")
+		logger.info(f"DigitalRocksPortalCatalog::listCatalogObjects END project({project}) #({self.COUNT}) size({HumanSize(self.BYTES)}) {sec} seconds")
 		return ret
 

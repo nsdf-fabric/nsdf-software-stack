@@ -1,6 +1,6 @@
 import sys,shutil,os,time,logging, shlex,time,subprocess,io,threading, queue
 from urllib.request import AbstractBasicAuthHandler
-from .s3 import S3
+from urllib.parse import parse_qs, urlparse
 
 logger = logging.getLogger("nsdf")
 
@@ -55,7 +55,11 @@ def rmdir(dir):
 			time.sleep(2)
 	logger.info(f"Removed directory {dir}")
 			
-		
+# /////////////////////////////////////////
+def ParseUrl(url):
+	parsed=urlparse(url)
+	qs=parse_qs(parsed.query, keep_blank_values=True)
+	return parsed.scheme, parsed.netloc, parsed.path, qs
 
 # /////////////////////////////////////////
 def rmfile(file):
@@ -81,7 +85,7 @@ def LoadYaml(filename):
 	return body
 
 # /////////////////////////////////////////////////////////////////////////
-def StringFileSize(size):
+def HumanSize(size):
 	KiB,MiB,GiB,TiB=1024,1024*1024,1024*1024*1024,1024*1024*1024*1024
 	if size>TiB: return "{:.1f}TiB".format(size/TiB) 
 	if size>GiB: return "{:.1f}GiB".format(size/GiB) 
@@ -151,7 +155,8 @@ def RunCommand(logger, name, cmd, verbose=False, nretry=3):
 # ////////////////////////////////////////////////////////////////////////
 def FileExists(filename):
 	if filename.startswith("s3://"):
-		return S3(logger).existObject(filename)
+		from nsdf.s3 import S3
+		return S3().existObject(filename)
 	else:
 		return os.path.isfile(filename)
 	
@@ -160,7 +165,8 @@ def TouchFile(filename):
 	if FileExists(filename):
 		return
 	if filename.startswith("s3://"):
-		S3(logger).putObject(filename,"0") # I don't think I can have zero-byte size on S3
+		from nsdf.s3 import S3
+		S3().putObject(filename,"0") # I don't think I can have zero-byte size on S3
 	else:
 		open(filename, 'a').close()
 

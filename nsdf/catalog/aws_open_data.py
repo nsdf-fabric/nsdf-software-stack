@@ -6,7 +6,7 @@ import botocore.config
 
 import subprocess,glob,yaml
 
-from nsdf.kernel import logger, StringFileSize
+from nsdf.kernel import logger, HumanSize
 
 # //////////////////////////////////////////////////////////////
 class AWSOpenDataCatalog:
@@ -98,7 +98,7 @@ class AWSOpenDataCatalog:
 					BYTES+=size
 
 			if (time.time()-t1)>20.0:
-				logger.info(f"...(cont.) AWSOpenDataCatalog::listCatalogObjects CONT bucket_name({bucket_name}) endpoint_url({endpoint_url}) #({COUNT}) size({StringFileSize(BYTES)}) {int(time.time()-T1)} seconds")
+				logger.info(f"...(cont.) AWSOpenDataCatalog::listCatalogObjects CONT bucket_name({bucket_name}) endpoint_url({endpoint_url}) #({COUNT}) size({HumanSize(BYTES)}) {int(time.time()-T1)} seconds")
 				t1=time.time()
 
 			# try the continuation
@@ -107,7 +107,7 @@ class AWSOpenDataCatalog:
 			except KeyError:
 				break
 
-		logger.info(f"AWSOpenDataCatalog::listCatalogObjects bucket_name({bucket_name}) endpoint_url({endpoint_url}) #({COUNT}) size({StringFileSize(BYTES)}) done in {int(time.time()-T1)} seconds")
+		logger.info(f"AWSOpenDataCatalog::listCatalogObjects bucket_name({bucket_name}) endpoint_url({endpoint_url}) #({COUNT}) size({HumanSize(BYTES)}) done in {int(time.time()-T1)} seconds")
 		return ret
 
 

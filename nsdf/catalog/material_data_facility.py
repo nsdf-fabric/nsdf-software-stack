@@ -3,7 +3,7 @@
 import time
 import pandas as pd
 from mdf_forge.forge import Forge
-from nsdf.kernel import logger, StringFileSize
+from nsdf.kernel import logger, HumanSize
 
 # /////////////////////////////////////////////////////
 class MaterialDataFacility:
@@ -64,5 +64,5 @@ class MaterialDataFacility:
 				tot_size+=int(file['length'])
 				tot_files+=1
 		sec=time.time()-t1
-		logger.info(f"MaterialCommonsCatalog::listCatalogObjects END source_id({source_id}) tot_files({tot_files}) tot_size({StringFileSize(tot_size)}) {sec} seconds")
+		logger.info(f"MaterialCommonsCatalog::listCatalogObjects END source_id({source_id}) tot_files({tot_files}) tot_size({HumanSize(tot_size)}) {sec} seconds")
 		return ret
