@@ -39,11 +39,17 @@ class WorkerPool:
 		else:
 			return ret
 
-	def _pushTask(self,task,lock:multiprocessing.Lock):
+	def pushTask(self, task, lock:multiprocessing.Lock=None):
+		if not lock:
+			with self.lock: 
+				return self.pushTask(task,self.lock)
 		self.q.put(task)
 		self.processing+=1
 
-	def _popTask(self,task, lock:multiprocessing.Lock):
+	def popTask(self,task, lock:multiprocessing.Lock=None):
+		if not lock:
+			with self.lock: 
+				return self.popTask(task,self.lock)     
 		self.processing-=1
 		if not self.processing:
 			self.results.put(WorkerPool.LastResult())
@@ -51,11 +57,7 @@ class WorkerPool:
 	def _workerLoop(self):
 		while True:
 			task=self.q.get()
-   
 			if isinstance(task,WorkerPool.QuitWorker):  
 				return
-	
 			task()
-   
-			with self.lock:
-				self._popTask(task,self.lock)
+			self.popTask(task)

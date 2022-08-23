@@ -134,7 +134,7 @@ class ListObjects(WorkerPool):
 		self.known_folders.add(prefix)
 		self.tot_folders+=1
 		self.results.put(folder)  
-		self._pushTask(functools.partial(self._listObjectsTask,folder,None),lock)
+		self.pushTask(functools.partial(self._listObjectsTask,folder,None),lock)
    
 	def _visitFile(self, file, lock :multiprocessing.Lock):
 		if file['Key'].endswith("/"): 
@@ -146,7 +146,7 @@ class ListObjects(WorkerPool):
 	def _listObjectsTask(self, folder, continuation_token):
 		files, folders, next_continuation_token=ListObjectsV2(self.s3.client,self.bucket, folder,continuation_token)
   
-		with self.lock:
+		with self.lock as lock:
 			self.num_network_requests+=1
 
 			for folder in folders:
@@ -156,6 +156,6 @@ class ListObjects(WorkerPool):
 				self._visitFile(file,self.lock)   
 
 			if next_continuation_token:
-				self._pushTask(functools.partial(self._listObjectsTask,folder,next_continuation_token),self.lock)
+				self.pushTask(functools.partial(self._listObjectsTask,folder,next_continuation_token),lock)
 
 

@@ -116,6 +116,7 @@ class CopyObjects(WorkerPool):
 		self.dst.db=clickhouse_driver.Client(host="localhost", port=str(9000))
 		self.dst.s3=S3(url=dst)
 		self.dst.bucket,self.dst.prefix,_=S3ParseUrl(dst,is_folder=True)
+		self.stats=Stats()
 
 		self.setMaxConcurrency(max(self.src.s3.num_connections,self.dst.s3.num_connections))
   
@@ -131,7 +132,6 @@ class CopyObjects(WorkerPool):
 			ON dst.Key=CONCAT('buckets/Pania_2021Q3_in_situ_data/',src.Key) WHERE dst.Key=''"""
 			)[0]
   
-		self.stats=Stats()
 		self.stats.increment([("tot_bytes",tot_bytes),("tot_files",tot_files)])
 		self.stats.print()
 
@@ -140,11 +140,13 @@ class CopyObjects(WorkerPool):
 			""",
 			settings={'max_block_size': 10000})
 
-		for row in rows:
-			with self.lock:
-				if self.exit:
-					return
-				self._pushTask(functools.partial(self._copyObjectTask,row),self.lock)
+		worker_id   = int(os.environ.get("WORKER_ID"  ,0))
+		num_workers = int(os.environ.get("NUM_WORKERS",1))
+		logger.info(f"WORKER_ID   {worker_id}")
+		logger.info(f"NUM_WORKERS {num_workers}")
+		for I,row in enumerate(rows):
+			if (I % num_workers) == worker_id: 
+				self.pushTask(functools.partial(self._copyObjectTask,row))
 
 
 	def _copyObjectTask(self, src_row):
