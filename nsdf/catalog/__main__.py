@@ -1,6 +1,7 @@
 import os, sys, base64, glob, subprocess, time, logging, datetime
 from   pprint import pprint
-from   nsdf.kernel import logger, WriteCSV, HumanSize, S3, SetupLogger, LoadYaml, FileExists,NormalizeEnv, PrintEnv, SetEnv
+from   nsdf.kernel import logger, WriteCSV, HumanSize, SetupLogger, LoadYaml, FileExists,NormalizeEnv, PrintEnv, SetEnv
+from   nsdf.s3 import S3
 
 from prefect import task, Flow, unmapped
 
@@ -68,15 +69,6 @@ def ListCatalogObjectsTask(catalog, dataset, loc, rem, dry_run=False):
 
 # ////////////////////////////////////////////////////////////////////////
 if __name__=="__main__":
-
-	# need S3 credentials for object storage
-	assert "AWS_ACCESS_KEY_ID"     in os.environ 
-	assert "AWS_SECRET_ACCESS_KEY" in os.environ
-	assert "AWS_DEFAULT_REGION"    in os.environ
-	assert "AWS_ENDPOINT_URL"      in os.environ
-
-	# need material commons credentials to use its api
-	assert "MC_TOKEN" in os.environ
 
 	workflow=LoadYaml(os.path.join(os.path.dirname(__file__),"workflow.yaml"))
 

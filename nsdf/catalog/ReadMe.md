@@ -37,7 +37,7 @@ Check S3 credentials:
 export PYTHONPATH=$(pwd)
 
 eval $(python3 -m nsdf.catalog export-env)
-aws s3 --endpoint-url=${AWS_ENDPOINT_URL} mb ${REMOTE}
+aws s3 --endpoint-url=${AWS_ENDPOINT_URL} mb $(dirname ${REMOTE})
 aws s3 --endpoint-url=${AWS_ENDPOINT_URL} ls ${REMOTE}
 
 # warm up clean the temporary directory and sync the code between workers
