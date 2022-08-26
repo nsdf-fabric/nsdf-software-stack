@@ -4,8 +4,8 @@ env:
   - s3-cloudbank
   - material-commons-api
 
-  REMOTE: s3://nsdf-catalog/20220624
-  LOCAL: /tmp/nsdf-catalog/20220624
+  REMOTE: s3://nsdf-catalog/20220824
+  LOCAL: /tmp/nsdf-catalog/20220824
 
 # if you want to run on dask
 dask:
