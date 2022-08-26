@@ -77,9 +77,12 @@ def Main(args):
 		# Processed 252.22 million rows, 25.63 GB (17.97 million rows/s., 1.83 GB/s.)
 		time clickhouse-client --query="SELECT count(*) FROM pania AS src LEFT JOIN (select Key from sealstorage) dst ON dst.Key=CONCAT('{Dprefix}',src.Key) WHERE dst.Key=''"
   		"""
+		"""
 
-		# python3 -m nsdf.s3 copy-objects "s3://Pania_2021Q3_in_situ_data?profile=wasabi&num-connections=128"  "s3://utah/buckets/Pania_2021Q3_in_situ_data?profile=sealstorage&num-connections=128&no-verify-ssl"
-  
+while [[ 1 == 1 ]] ; do WORKER_ID=0 NUM_WORKERS=1 python3 -m nsdf.s3 copy-objects \
+    "s3://Pania_2021Q3_in_situ_data?profile=wasabi&num-connections=128"  \
+    "s3://utah/buckets/Pania_2021Q3_in_situ_data?profile=sealstorage&num-connections=128&no-verify-ssl" ; done
+		"""
 		parser = argparse.ArgumentParser(description=action)
 		parser.add_argument('src',type=str)  
 		parser.add_argument('dst',type=str) 
