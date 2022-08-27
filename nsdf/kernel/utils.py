@@ -156,7 +156,7 @@ def RunCommand(logger, name, cmd, verbose=False, nretry=3):
 def FileExists(filename):
 	if filename.startswith("s3://"):
 		from nsdf.s3 import S3
-		return S3().existObject(filename)
+		return S3(num_connections=1).existObject(filename)
 	else:
 		return os.path.isfile(filename)
 	
@@ -166,7 +166,7 @@ def TouchFile(filename):
 		return
 	if filename.startswith("s3://"):
 		from nsdf.s3 import S3
-		S3().putObject(filename,"0") # I don't think I can have zero-byte size on S3
+		S3(num_connections=1).putObject(filename,"0") # I don't think I can have zero-byte size on S3
 	else:
 		open(filename, 'a').close()
 

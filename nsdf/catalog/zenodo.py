@@ -11,7 +11,7 @@ zeno = zenodopy.Client()
 # see # https://developers.zenodo.org/
 # https://akshayranganath.github.io/Rate-Limiting-With-Python/
 # /////////////////////////////////////////////////////////////
-from tkinter import E
+# from tkinter import E
 from ratelimit import limits, RateLimitException, sleep_and_retry
 
 @sleep_and_retry
@@ -163,18 +163,27 @@ if __name__=="__main__":
    # /////////////////////////////////////////////////////
 	if action=="zenodo.json":
 		RECORDS=[]
-		a=datetime.date(2010, 1, 1).toordinal() #  I am loosing some Zenodo records but with wrong date
-		b=datetime.datetime.today().toordinal() + 1
-		d=a
+		long_ago=datetime.date(2010, 1, 1).toordinal() #  I am loosing some Zenodo records but with wrong date
+		today=datetime.datetime.today().toordinal()
 
-		delta=10
-		for D in range(a,b,delta):
+		import psutil
+		io1 = psutil.net_io_counters()
+		T1=time.time()
+
+		# choose the delta in a way that you don't get more than 10K records for a request
+		delta=5
+
+		for A in range(long_ago,today,delta):
+			B=min(today,A+delta)
 			try:
-				RECORDS.extend(GetZenodoRecords(D,min(b,D+delta)))
+				RECORDS.extend(GetZenodoRecords(A,B))
 			except Exception as ex:
-				print(f"ERROR a={a} b={b} exception={ex}")
+				print(f"ERROR A={A} B={B} exception={ex}")
 
-		with open(action, 'w') as fp:
+		io2 = psutil.net_io_counters()
+		print(f"num-network-upload-bytes={io2.bytes_sent - io1.bytes_sent:,} network-download-bytes={io2.bytes_recv - io1.bytes_recv:,} sec={time.time()-T1:.2f}")	
+
+		with open("zenodo.json", 'w') as fp:
 			json.dump(RECORDS, fp)
 	
 		print("ALl done")
@@ -183,10 +192,10 @@ if __name__=="__main__":
    # /////////////////////////////////////////////////////
 	if action=="zenodo.csv":
 
-		with open('zenodo.json', 'r') as fin:
+		with open("zenodo.json", 'r') as fin:
 			RECORDS=json.load(fin)
 
-		with open(action,"w")  as fout:
+		with open("zenodo.csv","w")  as fout:
 			writer=csv.writer(fout)
 			num_files,tot_size=0,0
 			for record in RECORDS:

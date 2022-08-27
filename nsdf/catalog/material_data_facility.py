@@ -20,7 +20,7 @@ class MaterialDataFacility:
 			"source_id"  :dataset['mdf']["source_id"],
 			"source_name":dataset['mdf']["source_name"]
 			} for id, dataset in enumerate(self.mdf.search("mdf.resource_type:dataset", advanced=True))]
-		logger.info(f"MaterialCommonsCatalog::listDatasets #({len(ret)})")
+		logger.info(f"MaterialDataFacility::listDatasets #({len(ret)})")
 		return ret
 
 	# getDatasetKey
@@ -64,5 +64,5 @@ class MaterialDataFacility:
 				tot_size+=int(file['length'])
 				tot_files+=1
 		sec=time.time()-t1
-		logger.info(f"MaterialCommonsCatalog::listCatalogObjects END source_id({source_id}) tot_files({tot_files}) tot_size({HumanSize(tot_size)}) {sec} seconds")
+		logger.info(f"MaterialDataFacility::listCatalogObjects END source_id({source_id}) tot_files({tot_files}) tot_size({HumanSize(tot_size)}) {sec} seconds")
 		return ret

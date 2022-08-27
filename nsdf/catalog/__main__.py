@@ -34,7 +34,7 @@ def ListDatasetsTask(catalog):
 		# raise 
 
 # ///////////////////////////////////////////////////////////
-def ListCatalogObjects(catalog, dataset, loc, rem, dry_run=False):
+def ListCatalogObjects(catalog, dataset, loc, rem, dry_run=False, force=False):
 
 	key=catalog.getDatasetKey(dataset)
 	loc=loc.format(key=catalog.getDatasetKey(dataset))
@@ -44,8 +44,8 @@ def ListCatalogObjects(catalog, dataset, loc, rem, dry_run=False):
 	if dry_run:
 		return
 
-	s3=S3()
-	if s3.existObject(rem):
+	s3=S3(num_connections=1)
+	if not force and s3.existObject(rem):
 		logger.info(f"{rem} already exists. No need to recreate it")
 		return
 
@@ -65,6 +65,7 @@ def ListCatalogObjectsTask(catalog, dataset, loc, rem, dry_run=False):
 		logger.info(f"ListCatalogObjectsTask Error: {traceback.format_exc()}")
 		# better to continue anyway?
 		# raise
+
 
 
 # ////////////////////////////////////////////////////////////////////////
@@ -98,12 +99,13 @@ if __name__=="__main__":
 	catalogs.append(DigitalRocksPortalCatalog("digitalrocksportal"))
 	catalogs.append(AWSOpenDataCatalog("aws-open-data"))
 	catalogs.append(MaterialDataFacility("mdf"))
+	
 
 	# _______________________________________________
 	def Summarize(num_threads=128):
 		from multiprocessing.pool import ThreadPool
-		s3=S3()
-		p = ThreadPool()
+		s3=S3(num_connections=num_threads)
+		p = ThreadPool(num_threads)
 		datasets=p.map(ListDatasets,catalogs)
 		ARGS=[]
 		for C,catalog in enumerate(catalogs):

@@ -384,7 +384,7 @@ def PreprocessMain(workflow):
 
 
 def CheckObjectExist(it):
-    s3 = S3()
+    s3 = S3(num_connections=1)
     return (it["creates"], s3.existObject(it["creates"]))
 
 

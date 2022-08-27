@@ -228,26 +228,28 @@ def Main():
 
 	"""
 	To run:
-
-	python3 nsdf/catalog/dataverse.py get-files
+	python3 nsdf/catalog/dataverse.py json
+	python3 nsdf/catalog/dataverse.py csv
 	python3 nsdf/catalog/dataverse.py stats
-
-	# copy into the bucket so that you can insert the records in clickhouse
-	# (uncomment the following lines to enable the profile...)
-	#   cp ~/.nsdf/vault/aws_config ~/.aws/config
-	#   cp ~/.nsdf/vault/aws_credentials ~/.aws/credentials
-	aws s3 cp --profile cloudbank --endpoint-url https://s3.us-west-1.amazonaws.com dataverse.csv s3://nsdf-catalog/dataverse/
 	"""
 
 	action=sys.argv[1]
 
 	if action=="json":
+
+		import psutil
+		io1 = psutil.net_io_counters()
+		T1=time.time()
+
 		# catalog,bucket,filename,filesize,modified,m5
 		with open('dataverse.json', 'w') as fout:
 			for base_url, file in GetDataverseFiles():
 				file["dataverse_url"]=base_url
 				fout.write(json.dumps(file) + "\n")
-		sys.exit(0)	
+				
+		io2 = psutil.net_io_counters()
+		print(f"network-upload-bytes={io2.bytes_sent - io1.bytes_sent:,} network-download-bytes={io2.bytes_recv - io1.bytes_recv:,} sec={time.time()-T1:.2f}")	
+		sys.exit(0)
 
 	if action=="csv":
 		# catalog,bucket,filename,filesize,modified,m5
@@ -263,8 +265,8 @@ def Main():
 
 	if action=="url":
 		# catalog,bucket,filename,filesize,modified,m5
-		fout=open("dataverse.url.csv","w") 
 		fin=open('dataverse.json',"r")
+		fout=open("dataverse.url.csv","w") 
 		writer=csv.writer(fout)
 		for line in fin.readlines():
 			f=json.loads(line.strip())
@@ -287,20 +289,7 @@ def Main():
 		print(f"num-files={num_files:,} total-size={total_size:,} ({total_size//1024**4:,}TB) min_file_size={m:,} max-file-size={M:,} ")
 		sys.exit(0)
 
-	if action=="network-copy":
 
-		"""
-export SRC=https://dataverse.harvard.edu/api/access/datafile/2861142
-export DST=s3://utah/xxxx/2861142?profile=sealstorage
-export S3_ENDPOINT_URL="https://maritime.sealstorage.io/api/v0/s3"
-python3 nsdf/catalog/dataverse.py network-copy $SRC $DST
-aws --profile sealstorage --no-verify-ssl --endpoint-url https://maritime.sealstorage.io/api/v0/s3 s3 ls utah/xxxx/
-"""
-
-		src=sys.argv[2]
-		dst=sys.argv[3]
-		NetworkCopy(src,dst)
-		sys.exit(0)
 
 
 # //////////////////////////////////////////////////////////////////////////////////
