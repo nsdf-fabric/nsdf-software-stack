@@ -18,20 +18,17 @@ def Main(args):
  
 	# _________________________________________
 	if action=="ls":
-		# python3 -m nsdf.s3  ls --no-verify-ssl "s3://utah?profile=sealstorage&no-verify-ssl&num-connections=48"
-		# python3 -m nsdf.s3  ls "s3://Pania_2021Q3_in_situ_data?profile=wasabi&num-connections=48"
+		# time python3 -m nsdf.s3  ls --only_dirs "s3://Pania_2021Q3_in_situ_data?profile=wasabi&num-connections=48"  > /srv/nvme1/nsdf/pania.json
+		# time python3 -m nsdf.s3  ls --only_dirs  "s3://utah?profile=sealstorage&no-verify-ssl&num-connections=48"    > /srv/nvme1/nsdf/sealstorage.json
 		
-		# on JHU with 48 connections I can reach ~10K objects/sec (7 hours for 246M objects)
-		# redis_server = redis.StrictRedis('localhost',6379, charset="utf-8", decode_responses=True)
-
 		parser = argparse.ArgumentParser(description=action)
+		parser.add_argument('--only-dirs',action='store_true')  
 		parser.add_argument('url',type=str)  
 		args=parser.parse_args(args[2:])
 		logger.info(f"Got args {args}")
 		
- 
 		t1=time.time()
-		ls=ListObjects(args.url)
+		ls=ListObjects(args.url,args.only_dirs)
 		for obj in ls:
 			print(json.dumps(obj, default=str))
 			sec=time.time()-t1	

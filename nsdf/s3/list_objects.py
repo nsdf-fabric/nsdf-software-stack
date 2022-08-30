@@ -92,16 +92,20 @@ if False:
 		sys.exit(0)
     
 # ///////////////////////////////////////////////////
-def ListObjectsV2(client, bucket, folder, continuation_token=None):
+def ListObjectsV2(client, bucket, folder, continuation_token=None,MaxKeys=1000):
 
-	kwargs=dict(Bucket=bucket, Prefix=folder['Prefix'], Delimiter='/', MaxKeys=1000) # cann be more than 1000 
+	kwargs=dict(Bucket=bucket, Prefix=folder['Prefix'], Delimiter='/', MaxKeys=MaxKeys) # cannot be more than 1000 
+
 	if continuation_token: 
 		kwargs['ContinuationToken']=continuation_token
-
 	resp = client.list_objects_v2(**kwargs) 
-	files, folders=resp.get('Contents',[]), resp.get('CommonPrefixes',[])
+ 
+	files  =resp.get('Contents',[]) 
+	folders=resp.get('CommonPrefixes',[])
+ 
 	next_continuation_token = resp.get('NextContinuationToken',None)
 	logger.debug(f"listObjects  bucket={bucket} folder={folder} num-folders={len(folders)} num-files={len(files)} next_continuation_token={next_continuation_token}")	
+
 	return (files,folders,next_continuation_token)
 
    
@@ -109,12 +113,13 @@ def ListObjectsV2(client, bucket, folder, continuation_token=None):
 # ///////////////////////////////////////////////////
 class ListObjects(WorkerPool):
 
-	def __init__(self, url):
+	def __init__(self, url, only_dirs=False):
 		super().__init__()
 		self.s3=S3(url) 
 		self.url=url
 		self.tot_folders=0
 		self.tot_files=0
+		self.only_dirs=only_dirs
 		self.num_network_requests=0
 		self.bucket, self.key, qs=S3ParseUrl(self.url, is_folder=True)
 		self.known_folders=set()
@@ -125,8 +130,7 @@ class ListObjects(WorkerPool):
 	def printStatistics(self):
 		with self.lock:
 			SEC=time.time()-self.t1
-			TOT=self.tot_folders+self.tot_files
-			logger.info(f"tot-folders={self.tot_folders} tot-files={self.tot_files} num-network-requests={self.num_network_requests} objects-per-sec={int(TOT/SEC)}")
+			logger.info(f"tot-folders={self.tot_folders} tot-files={self.tot_files} files-per-sec={int(self.tot_files/SEC)} num-network-requests={self.num_network_requests} network-request-per-sec={self.num_network_requests/SEC} ")
 
 	def _visitFolder(self,folder, lock:multiprocessing.Lock):
 		prefix=folder['Prefix']
@@ -137,6 +141,8 @@ class ListObjects(WorkerPool):
 		self.pushTask(functools.partial(self._listObjectsTask,folder,None),lock)
    
 	def _visitFile(self, file, lock :multiprocessing.Lock):
+		
+		print("_visitFile",file)
 		if file['Key'].endswith("/"): 
 			assert file['Key'] in self.known_folders # is a folder and I have already added it using CommonPrefix
 			return
@@ -144,8 +150,15 @@ class ListObjects(WorkerPool):
 		self.results.put(file)
   
 	def _listObjectsTask(self, folder, continuation_token):
-		files, folders, next_continuation_token=ListObjectsV2(self.s3.client,self.bucket, folder,continuation_token)
+   
+		MaxKeys=1000 
+   
+		files, folders, next_continuation_token=ListObjectsV2(self.s3.client,self.bucket, folder,continuation_token, MaxKeys=MaxKeys) # cannot do more than 1000
   
+		# I want only directories
+		if self.only_dirs: 
+			files=[]
+	
 		with self.lock as lock:
 			self.num_network_requests+=1
 
@@ -155,6 +168,9 @@ class ListObjects(WorkerPool):
 			for file in files:
 				self._visitFile(file,self.lock)   
 
+			if self.only_dirs and len(folders)<MaxKeys:
+				next_continuation_token=None
+  
 			if next_continuation_token:
 				self.pushTask(functools.partial(self._listObjectsTask,folder,next_continuation_token),lock)
 

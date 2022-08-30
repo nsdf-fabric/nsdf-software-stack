@@ -108,12 +108,12 @@ class CopyObjects(WorkerPool):
 		self.tmp_dir=tmp_dir
   
 		self.src=CopyObjects.EndPoint()
-		self.src.db=clickhouse_driver.Client(host="localhost", port=str(9000))
+		self.src.db=clickhouse_driver.Client(host="nsdf01", port=str(10004), user="default", password="")
 		self.src.s3=S3(url=src)
 		self.src.bucket,self.src.prefix,_=S3ParseUrl(src,is_folder=True)
 
 		self.dst=CopyObjects.EndPoint()
-		self.dst.db=clickhouse_driver.Client(host="localhost", port=str(9000))
+		self.dst.db=clickhouse_driver.Client(host="nsdf01", port=str(10004), user="default", password="")
 		self.dst.s3=S3(url=dst)
 		self.dst.bucket,self.dst.prefix,_=S3ParseUrl(dst,is_folder=True)
 		self.stats=Stats()
@@ -127,9 +127,11 @@ class CopyObjects(WorkerPool):
 
 	def _pushAllTasks(self):
 		tot_files,tot_bytes=self.src.db.execute("""
-			SELECT count(*),sum(src.Size) FROM pania AS src 
-			LEFT JOIN (select Key from sealstorage) dst 
-			ON dst.Key=CONCAT('buckets/Pania_2021Q3_in_situ_data/',src.Key) WHERE dst.Key=''"""
+SELECT count(*),sum(src.Size) FROM pania AS src 
+LEFT JOIN (select Key from sealstorage) dst 
+ON dst.Key=CONCAT('buckets/Pania_2021Q3_in_situ_data/',src.Key) 
+WHERE dst.Key=''
+"""
 			)[0]
   
 		self.stats.increment([("tot_bytes",tot_bytes),("tot_files",tot_files)])
@@ -140,14 +142,16 @@ class CopyObjects(WorkerPool):
 			""",
 			settings={'max_block_size': 10000})
 
+		# TODO: this is very bad waiting for all workers to be ready
+		input("Press Enter to continue...")
+
 		worker_id   = int(os.environ.get("WORKER_ID"  ,0))
 		num_workers = int(os.environ.get("NUM_WORKERS",1))
 		logger.info(f"WORKER_ID   {worker_id}")
 		logger.info(f"NUM_WORKERS {num_workers}")
 		for I,row in enumerate(rows):
-			if (I % num_workers) == worker_id: 
+			if (I % num_workers) == worker_id:
 				self.pushTask(functools.partial(self._copyObjectTask,row))
-
 
 	def _copyObjectTask(self, src_row):
 		Skey, last_modified,etag,size,storage_class = src_row

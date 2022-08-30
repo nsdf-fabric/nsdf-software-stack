@@ -57,7 +57,6 @@ class WorkerPool:
 	def _workerLoop(self):
 		while True:
 			task=self.q.get()
-			if isinstance(task,WorkerPool.QuitWorker):  
-				return
+			if isinstance(task,WorkerPool.QuitWorker): return
 			task()
 			self.popTask(task)

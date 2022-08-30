@@ -71,6 +71,8 @@ sudo chmod a+rwX /vol_b
 
 # Install ClickHouse 
 
+## Ubuntu
+
 ```
 aws configure
 aws configure set default.s3.max_concurrent_requests 300
@@ -89,7 +91,6 @@ ansible -m shell -a "sudo apt install -y openjdk-8-jre openjdk-8-jdk-headless"  
 # source /etc/profile
 
 ansible -m shell -a "sudo apt install -y zookeeperd" --inventory ${INVENTORY} ${GROUP} 
-
 
 sudo apt update
 sudo apt install -y glances  mysql-client
@@ -113,6 +114,39 @@ sudo ./clickhouse install \
 
 sudo clickhouse start
 # sudo clickhouse-server --config-file=/etc/clickhouse-server/config.xml
+```
+
+## Redhat 8
+
+```
+
+sudo yum install -y clickhouse-server clickhouse-client
+
+
+```
+change all 900X ports to 1000X port to avoid conflicts wiht python
+
+```
+sudo /etc/init.d/clickhouse-server start
+set <listen_host>::</listen_host> (dangerous!)
+```
+
+Check connectivity:
+
+
+```
+sudo netstat -antp|grep LIST|grep clickhouse
+sudo vi /etc/clickhouse-server/config.xml
+sudo /etc/init.d/clickhouse-server restart
+sudo tail -n 100  /var/log/clickhouse-server/clickhouse-server.log
+sudo netstat -antp|grep LIST|grep clickhouse
+# tcp6       0      0 :::10004                :::*                    LISTEN      2198639/clickhouse- 
+# tcp6       0      0 :::10005                :::*                    LISTEN      2198639/clickhouse- 
+# tcp6       0      0 :::10006                :::*                    LISTEN      2198639/clickhouse- 
+# tcp6       0      0 :::10009                :::*                    LISTEN      2198639/clickhouse- 
+# tcp6       0      0 :::8123                 :::*                    LISTEN      2198639/clickhouse-
+
+clickhouse-client --host nsdf01 --port 10004
 ```
 
 # Check ClickHouse connectivity
@@ -158,7 +192,7 @@ mysql --protocol=tcp --host=${PUBLIC_IP} --user=default --password='' --port=900
 ```
 # DANGEROUS: allow connection from ANY host
 CREATE USER if not exists 'dbuser' 
-IDENTIFIED WITH plaintext_password BY 'solopizza' 
+IDENTIFIED WITH plaintext_password BY 'XXXXXXXX' 
 HOST ANY; 
 
 SHOW USERS;
@@ -170,14 +204,110 @@ WITH GRANT OPTION;
 SHOW GRANTS FOR dbuser;
 ```
 
-# Populate the DB
+# Create ClickHouse DB
 
-See the `nsdf-catalog.ipynb` file
+From bash
+
+```
+# credentials needed to download CSV files from S3 (replace name as needed)
+eval $(python3 -m nsdf export-env s3-wasabi)
+
+# credentials needed to connect to clickhouse server (replace name as needed)
+eval $(python3 -m nsdf export-env clickhouse-nsdf01)
+
+# use client
+alias cc="${CLICKHOUSE_CLIENT}"
+
+# use client with query
+alias ccq="${CLICKHOUSE_CLIENT} --query"
+
+# count records
+alias ccc="ccq 'select count(*) from nsdf.catalog'"
 
 
+```
+
+Execute the following scripts to populate the db
+
+```
+CREATE DATABASE IF NOT EXISTS nsdf;
+
+DROP TABLE IF EXISTS nsdf.catalog;
+
+CREATE TABLE IF NOT EXISTS nsdf.catalog(
+
+   # unique id for object (in clickhouse I don't have autoinrement and this is the only way to have a distributed unique id)
+   uuid            UInt64   DEFAULT sipHash64(array(catalog,bucket,name)),
+
+   # https://github.com/ClickHouse/ClickHouse/issues/14634 (3 stands for 10^-3==milliseconds)
+   inserted_at     DateTime64(3) DEFAULT now64(), 
+
+   catalog	       LowCardinality(String),
+   bucket	       String,
+   name            String,
+   size            BIGINT,
+   last_modified   String NULL, # todo, I need a real date here
+   etag            String NULL
+) 
+ENGINE = MergeTree() 
+ORDER BY (catalog, bucket, name)
+PRIMARY KEY(catalog, bucket, name) 
+SETTINGS index_granularity = 8192;
+
+# NOTE: Not using minmax secondary index anymore, lot better to use projections !!!
+# (DEPRECATED) ALTER TABLE nsdf.catalog  
+# (DEPRECATED)   ADD INDEX IF NOT EXISTS catalog_pagination (inserted_at, uuid) TYPE minmax GRANULARITY 1;
+
+# using projections instead
+# https://www.tinybird.co/blog-posts/projections
+SET allow_experimental_projection_optimization = 1;
+ALTER TABLE nsdf.catalog ADD PROJECTION projection_paginate(SELECT * ORDER BY uuid);
+ALTER TABLE nsdf.catalog MATERIALIZE PROJECTION projection_paginate;
+
+SHOW CREATE TABLE nsdf.catalog;
+
+# if you need to insert faulty records
+# set input_format_allow_errors_num=999999;
+```
+
+From bash:
 
 
+```
 
+
+function InsertRecords {
+   pattern=$1
+   NUM_RECORDS_BEFORE=$(ccc)
+   echo "Doing pattern=${pattern} num-records=${NUM_RECORDS_BEFORE}..."
+   CMD=$(cat << EOF
+      INSERT INTO nsdf.catalog(catalog, bucket, name, size, last_modified, etag)
+      SELECT catalog, bucket, name, size, last_modified, etag
+      FROM s3(
+         '${pattern}',
+         '${AWS_ACCESS_KEY_ID}', 
+         '${AWS_SECRET_ACCESS_KEY}', 
+         'CSV', 
+         'catalog String,bucket String,name String,size String,last_modified String,etag String'
+    );
+EOF
+   )
+   cc --input_format_allow_errors_num 999999999 --query "${CMD}"
+   NUM_RECORDS_AFTER=$(ccc)
+   echo "Done num-records=${NUM_RECORDS_AFTER} delta=$(( NUM_RECORDS_AFTER - NUM_RECORDS_BEFORE ))"
+}
+
+
+ccq "TRUNCATE TABLE nsdf.catalog" && ccc
+
+for catalog in arecibo aws-open-data dataverse digitalrocksportal mc mdf ranch zenodo; do
+   InsertRecords "https://s3.us-west-1.wasabisys.com/nsdf-catalog/${catalog}/*.csv"
+done
+
+InsertRecords "https://s3.us-west-1.wasabisys.com/nsdf-catalog/aws-open-data/*.csv"
+
+```
+  
 
 # Scraping notes:
 
@@ -340,5 +470,188 @@ Statistics
 - network-upload-bytes=n.a.
 - network-download-bytes=n.a.
 - total-seconds=???
+
+
+
+# ClickHouse miscellanous
+
+
+```
+# ClickHouse uses the sorting key as a primary key if the primary key is not defined explicitly by the PRIMARY KEY clause.
+show create table nsdf.catalog;
+```
+
+Specs:
+- vCPU 8
+- RAM 32 GB
+- SSD Storage 256 GB
+
+```
+clickhouse-client --host XXXXX --port 9440 --secure --user admin --password XXXXX
+```
+
+# Show Statistics
+
+Links:
+- https://gist.github.com/sanchezzzhak/511fd140e8809857f8f1d84ddb937015
+
+```
+select
+    parts.*,
+    columns.compressed_size,
+    columns.uncompressed_size,
+    columns.ratio
+from (
+    select database,
+        table,
+        formatReadableSize(sum(data_uncompressed_bytes))          AS uncompressed_size,
+        formatReadableSize(sum(data_compressed_bytes))            AS compressed_size,
+        sum(data_compressed_bytes) / sum(data_uncompressed_bytes) AS ratio
+    from system.columns
+    group by database, table
+) columns right join (
+    select database,
+           table,
+           sum(rows)                                            as rows,
+           max(modification_time)                               as latest_modification,
+           formatReadableSize(sum(bytes))                       as disk_size,
+           formatReadableSize(sum(primary_key_bytes_in_memory)) as primary_keys_size,
+           any(engine)                                          as engine,
+           sum(bytes)                                           as bytes_size
+    from system.parts
+    where active
+    group by database, table
+) parts on ( columns.database = parts.database and columns.table = parts.table )
+order by parts.bytes_size desc;
+
+
+┌─parts.database─┬─parts.table──────┬───────rows─┬─latest_modification─┬─disk_size──┬─primary_keys_size─┬─engine──────────────┬──bytes_size─┬─compressed_size─┬─uncompressed_size─┬───────────────ratio─┐
+│ nsdf           │ catalog          │ 1549840430 │ 2022-08-27 12:16:38 │ 70.38 GiB  │ 95.60 MiB         │ MergeTree           │ 75570042161 │ 70.26 GiB       │ 258.34 GiB        │ 0.27195532633240216 │
+│ system         │ trace_log        │    1360326 │ 2022-08-28 07:11:55 │ 26.68 MiB  │ 1.03 KiB          │ MergeTree           │    27979212 │ 26.24 MiB       │ 379.32 MiB        │  0.0691641303723058 │
+│ system         │ metric_log       │      85431 │ 2022-08-28 07:11:58 │ 12.23 MiB  │ 186.00 B          │ MergeTree           │    12823590 │ 11.83 MiB       │ 210.10 MiB        │  0.0562845864464148 │
+│ system         │ query_thread_log │      32545 │ 2022-08-28 07:11:39 │ 2.88 MiB   │ 90.00 B           │ MergeTree           │     3022657 │ 2.37 MiB        │ 21.47 MiB         │ 0.11059508795837078 │
+│ system         │ query_log        │       7097 │ 2022-08-28 07:11:39 │ 1.05 MiB   │ 66.00 B           │ MergeTree           │     1098120 │ 0.00 B          │ 0.00 B            │                 nan │
+│ system         │ part_log         │      17828 │ 2022-08-28 07:11:48 │ 704.96 KiB │ 90.00 B           │ MergeTree           │      721879 │ 0.00 B          │ 0.00 B            │                 nan │
+│ system         │ session_log      │      20850 │ 2022-08-28 07:11:48 │ 563.94 KiB │ 90.00 B           │ MergeTree           │      577478 │ 0.00 B          │ 0.00 B            │                 nan │
+│ _system        │ write_sli_part   │       1614 │ 2022-08-28 07:12:00 │ 14.02 KiB  │ 24.00 B           │ ReplicatedMergeTree │       14358 │ 0.00 B          │ 0.00 B            │                 nan │
+│ _system        │ read_sli_part    │          1 │ 2022-08-27 07:28:02 │ 84.00 B    │ 22.00 B           │ ReplicatedMergeTree │          84 │ 0.00 B          │ 0.00 B            │                 nan │
+└────────────────┴──────────────────┴────────────┴─────────────────────┴────────────┴───────────────────┴─────────────────────┴─────────────┴─────────────────┴───────────────────┴─────────────────────┘
+```
+
+# Export catalog
+
+Links:
+- https://www.clairvoyant.ai/blog/big-data-file-formats
+
+```
+https://groups.google.com/g/clickhouse/c/noXKVLtv3hw
+SET max_threads=1;
+SET max_memory_usage=50000000000;
+
+
+# 1549840430 rows in set. Elapsed: 1423.112 sec (23 minutes). Processed 1.55 billion rows, 339.19 GB (1.09 million rows/s., 238.34 MB/s.)
+# file size on disk 76GB
+# aws s3 --profile wasabi cp /srv/nvme1/nsdf/catalog.pq s3://nsdf-catalog/click-house/ && rm -f /srv/nvme1/nsdf/catalog.pq
+SELECT * FROM nsdf.catalog INTO OUTFILE '/srv/nvme1/nsdf/catalog.pq'    FORMAT Parquet; 
+
+# fails, it's creating a file >255GB (!!!) that's is my SSD size (it seems like it writes the data UNCOMPRESSED)
+SELECT * FROM nsdf.catalog INTO OUTFILE '/srv/nvme0/nsdf/catalog.arrow' FORMAT Arrow;
+
+# 1549840430 rows in set. Elapsed: 1337.043 sec. Processed 1.55 billion rows, 339.19 GB (1.16 million rows/s., 253.69 MB/s.)
+# file size on disk 242G
+# aws s3 --profile wasabi cp /srv/nvme0/nsdf/catalog.orc s3://nsdf-catalog/click-house/ && rm -f /srv/nvme0/nsdf/catalog.orc
+SELECT * FROM nsdf.catalog INTO OUTFILE '/srv/nvme0/nsdf/catalog.orc'   FORMAT ORC;  
+```
+
+# Benchmarks without UUID (problem with paging)
+
+Links:
+- https://www.eversql.com/faster-pagination-in-mysql-why-order-by-with-limit-and-offset-is-slow/
+- https://groups.google.com/g/clickhouse/c/WAbb4i3SpqM
+- https://stackoverflow.com/questions/60655850/why-adding-offset-to-the-clickhouse-query-increase-execution-time
+- https://use-the-index-luke.com/no-offset
+- https://super-unix.com/database/postgresql-how-to-do-pagination-with-uuid-v4-and-created-time-on-concurrent-inserted-data/
+- SOLUTION (!) https://www.tinybird.co/blog-posts/projections
+
+```
+# 100 rows in set. Elapsed: 1.107 sec.
+select * from nsdf.catalog                            LIMIT 100 OFFSET 0; 
+
+# 100 rows in set. Elapsed: 1.134 sec. Processed 65.54 thousand rows, 24.63 MB (57.80 thousand rows/s., 21.73 MB/s.)
+select * from nsdf.catalog ORDER BY  catalog, bucket  LIMIT 100 OFFSET 0; 
+
+# 100 rows in set. Elapsed: 236.384 sec. Processed 1.55 billion rows, 339.19 GB (6.56 million rows/s., 1.43 GB/s.)
+select * from nsdf.catalog ORDER BY (catalog, bucket) LIMIT 100 OFFSET 0; 
+
+# 100 rows in set. Elapsed: 244.153 sec. Processed 1.50 billion rows, 329.11 GB (6.14 million rows/s., 1.35 GB/s.)
+select * from nsdf.catalog                            LIMIT 100 OFFSET 1500000000; 
+
+# 100 rows in set. Elapsed: 901.500 sec. Processed 1.50 billion rows, 327.72 GB (1.66 million rows/s., 363.52 MB/s.)
+select * from nsdf.catalog ORDER BY  catalog, bucket  LIMIT 100 OFFSET 1500000000; 
+
+# DB::Exception: Memory limit (for query) exceeded: would use 9.32 GiB
+select * from nsdf.catalog ORDER BY  catalog, bucket  LIMIT 100 OFFSET 1500000000  SETTINGS optimize_read_in_order=0;
+
+#  DB::Exception: Memory limit (for query) exceeded: would use 9.32 GiB
+select * from nsdf.catalog ORDER BY (catalog, bucket) LIMIT 100 OFFSET 1500000000; 
+```
+
+# Catalog with UUID
+
+
+Links:
+- https://clickhouse.com/docs/en/guides/improving-query-performance/sparse-primary-indexes/sparse-primary-indexes-uuids/
+- https://www.alibabacloud.com/blog/secondary-index-in-alibaba-cloud-clickhouse-best-practices_597894
+
+Notes:
+- IMPORTANT that we have low cardinality on the left of order by, primary key to have better compressions
+
+```
+# ALTER TABLE    nsdf.catalog ADD COLUMN uuid UUID DEFAULT generateUUIDv4() FIRST;
+# ALTER TABLE    nsdf.catalog ADD INDEX  uuid_index uuid TYPE minmax GRANULARITY 32;
+# OPTIMIZE TABLE nsdf.catalog FINAL;
+
+DROP TABLE IF EXISTS nsdf.catalog_uuid;
+
+CREATE TABLE nsdf.catalog_uuid(
+    uuid                   UUID,
+    catalog                String,
+    bucket                 String,
+    name                   String,
+    size                   Int64,
+    last_modified Nullable(String),
+    etag          Nullable(String),
+
+    # https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/mergetree/#available-types-of-indices
+    # minmax, set, ngrambf_v1, tokenbf_v1 or bloom_filter
+    INDEX uuid_index uuid TYPE minmax GRANULARITY 32
+)
+ENGINE = MergeTree  
+ORDER BY (catalog, bucket, name, uuid)  
+PRIMARY KEY(catalog, bucket, name, uuid) 
+SETTINGS index_granularity = 8192;
+
+SHOW CREATE TABLE nsdf.catalog_uuid;
+
+# max memory, min number of threads
+SET max_threads=1;
+
+SET max_memory_usage=50000000000;
+
+INSERT INTO nsdf.catalog_uuid 
+SELECT generateUUIDv4(),catalog,bucket,name,size,last_modified,etag 
+FROM nsdf.catalog;
+```
+
+# Benchmarks with UUID
+
+```
+select * from nsdf.catalog ORDER BY uuid  LIMIT 100 OFFSET 0; 
+select * from nsdf.catalog ORDER BY uuid  LIMIT 100 OFFSET 1500000000; 
+select * from nsdf.catalog ORDER BY uuid  LIMIT 100 OFFSET 1500000000  SETTINGS optimize_read_in_order=0;
+
+
+```
+
 
 
