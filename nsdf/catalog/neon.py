@@ -187,8 +187,8 @@ def Main():
 			site_codes=product.get("siteCodes",[])
 			for sitecode in site_codes if site_codes else []:
 				siteCode=sitecode["siteCode"]
-				for url in sitecode["availableDataUrls"]:
-					response=GetCachedResponse(url)
+				for data_url in sitecode["availableDataUrls"]:
+					response=GetCachedResponse(data_url)
 					if response and "data" in response:
 							for file in response["data"].get("files",[]):
 								tot_size+=visitFile(productCode, siteCode, file)
