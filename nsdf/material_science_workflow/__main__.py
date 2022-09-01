@@ -17,8 +17,12 @@ from prefect import Flow, Parameter, Task, task, unmapped
 from nsdf.kernel import logger, LoadYaml, rmfile, S3, GetPackageFilename, S3Sync, RunCommand, SetupLogger, LoadYaml
 from nsdf.distributed import NSDFDaskCluster
 
-
+#
+# specify which GPU(s) to be used when used without Dask. may need to export in the bash env: export CUDA_VISIBLE_DEVICES=1
+#os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 # ////////////////////////////////////////////////////////////////////////
+
+
 def ParseRangeFromString(value):
     ret = value
     if isinstance(ret, str):
@@ -28,6 +32,65 @@ def ParseRangeFromString(value):
 
 
 # ////////////////////////////////////////////////////////////////////////////
+
+def Reconstruction(rem_rec, s3_r, I, slab_size, tot_slices, rem_hdf5, loc_hdf5, loc, rem, loc_rec, r_prefix, s3, rotation_center, reconstruction_version, write_tiff_digit):
+    if rem_rec in s3_r:
+        logger.info(f"Reconstruction {rem_rec} already exists, skipping")
+        pass
+    else:
+        # remmember the recontruction happens in chunks
+
+        I1 = (I // slab_size) * slab_size
+        I2 = min(I1+slab_size, tot_slices)
+        if not os.path.isfile(loc_rec):
+            try:
+               # logger.info(f"rem_hdf5,loc_hdf5{rem_hdf5},{loc_hdf5}")
+                if not os.path.isfile(loc_hdf5):
+                    s3.downloadObject(rem_hdf5, loc_hdf5)
+                else:
+                    logger.info(f"file exists, skip downloading")
+                t1 = time.time()
+
+                # internally it will add a suffix SUCH AS `_<num>.tiff``
+                write_tiff_filename = f"{loc}/{r_prefix}/i"
+                # reconstruct versioning here
+                if reconstruction_version == 1:
+                    from nsdf.material_science_workflow.reconstruct_v1 import reconstruct_image
+                    vmin, vmax = reconstruct_image(
+                        loc_hdf5, write_tiff_filename, I1, I2, rotation_center, write_tiff_digit=write_tiff_digit)
+                elif reconstruction_version == 2:
+                    from nsdf.material_science_workflow.reconstruct_v2 import reconstruct_image
+                    # generate the white  for reconstruction
+                    if white_universal is None:
+                        t1 = time.time()
+                       # logger.info(f"Loading white...")
+                        white_key = "fly_scan_id_112509.h5"
+                        s3.downloadObject(
+                            f"s3://Pania_2021Q3_in_situ_data/hdf5/{white_key}", f"{loc}/hdf5/{white_key}")
+                        import h5py
+                        Data_Universal = h5py.File(
+                            f"{loc}/hdf5/{white_key}", 'r')
+                        white_universal = Data_Universal['img_bkg']
+                        del Data_Universal
+                        sec = time.time()-t1
+                        logger.info(f"Loaded white in {sec} seconds")
+
+                else:
+                    raise Exception(
+                        f"unsupported version {reconstruction_version}")
+
+                logger.info(
+                    f" Reconstruction {rem_hdf5} {I1}/{I2}vmin {vmin} vmax {vmax} loc_rec({loc_rec}) reconstruction_version({reconstruction_version})  done in {time.time()-t1} seconds")
+                assert os.path.isfile(loc_rec)
+
+            except Exception as ex:
+                # I want to see the error on the master terminal
+                logger.error(ex, exc_info=True)
+     #   if os.path.isfile(loc_rec):  ##comment out for testing
+            # s3.uploadObject(loc_rec, rem_rec) ##upload without concurrency
+      #      uploader.put(loc_rec, rem_rec)  ##upload with multiple threads 
+
+
 def FixTensorFlowProblem():
     """
     resolve the problem that `keras` (used by the segmentation) is taking all the GPU memory from all devices
@@ -55,19 +118,20 @@ def FixTensorFlowProblem():
     logger.info(
         f"FixTensorFlowProblem CUDA_VISIBLE_DEVICES={CUDA_VISIBLE_DEVICES} done")
 
-# ////////////////////////////////////////////////////////////////////////
+# /////////////////////reconstruction///////////////////////////////////////////////////
+
+
 def Preprocess(
         hdf5_url=None,
         tot_slices=0,
         rotation_center=None,
         disable_reconstruction=False,
         reconstruction_version=2,
-        disable_segmentation=False,
-        summarize=False,
-        slice_range=[0, -1, 1],
+    # summarize=False,
+        slice_to_process=0,
         slab_size=5,
         write_tiff_digit=5,
-        uploader_num_connections=8
+        uploader_num_connections=4  # large number may cause out-of-memory
 ):
 
     assert tot_slices
@@ -93,157 +157,37 @@ def Preprocess(
     s_prefix = f"workflow/{key}/s/tif"
 
     # support rehentrant i.e. if I already have the tiff files avoid to reproduce them
-    s3_r = [obj for obj in s3.listObjectsV2(f"{rem}/{r_prefix}", verbose=False)]
-    s3_s = [obj for obj in s3.listObjectsV2(f"{rem}/{s_prefix}", verbose=False)]
-
-    if summarize:
-        rnum = len(s3_r)
-        snum = len(s3_s)
-        rsize = sum([int(it['Size']) for it in s3_r])
-        ssize = sum([int(it['Size']) for it in s3_s])
-        return (rem_hdf5, tot_slices, rnum, rsize, snum, ssize)
+    s3_r = s3.listObjects(f"{rem}/{r_prefix}", verbose=False)
+    s3_s = s3.listObjects(f"{rem}/{s_prefix}", verbose=False)
 
     s3_r = [f"s3://{bucket}/{obj['Key']}" for obj in s3_r]
     s3_s = [f"s3://{bucket}/{obj['Key']}" for obj in s3_s]
 
-    logger.info(
-        f" Preprocess hdf5({rem_hdf5}) rotation-center({rotation_center}) slice-range({slice_range}) recontructions({len(s3_r)}/{tot_slices}) segmentations({len(s3_s)}/{tot_slices}) ...")
+    # logger.info(
+    #   f" Preprocess hdf5({rem_hdf5}) rotation-center({rotation_center}) slice-range({slice_range}) recontructions({len(s3_r)}/{tot_slices}) segmentations({len(s3_s)}/{tot_slices}) ...")
 
-    from nsdf.kernel import S3Uploader
-    uploader = S3Uploader(logger, uploader_num_connections)
+   # from nsdf.kernel import S3Uploader ## this becomes issues when one file processed on multiple nodes
+    #uploader = S3Uploader(logger, uploader_num_connections)
 
     white_universal = None
-    trained_model = None
+  
 
     # do slice by slice
-    for I in range(slice_range[0], slice_range[1] if slice_range[1] > 0 else tot_slices, slice_range[2]):
+    if not disable_reconstruction:
+       # for I in range(slice_range[0], slice_range[1] if slice_range[1] > 0 else tot_slices, slice_range[2]):
 
-        slice_uid = str(I).rjust(write_tiff_digit, '0')
+        slice_uid = str(slice_to_process).rjust(write_tiff_digit, '0')
         loc_rec = f"{loc}/{r_prefix}/i_{slice_uid}.tiff"
         rem_rec = f"{rem}/{r_prefix}/i_{slice_uid}.tiff"
         loc_seg = f"{loc}/{s_prefix}/i_{slice_uid}.tiff"
         rem_seg = f"{rem}/{s_prefix}/i_{slice_uid}.tiff"
 
-        # logger.info(f"Doing slice {I} range {slice_range} rem_hdf5 {rem_hdf5} rotation_center {rotation_center} ...")
-        if not disable_reconstruction:
-
-            if rem_rec in s3_r:
-                # logger.info(f"Reconstruction {rem_rec} already exists, skipping")
-                pass
-
-            else:
-                # remmember the recontruction happens in chunks
-                I1 = (I // slab_size) * slab_size
-                I2 = min(I1+slab_size, tot_slices)
-
-                if not os.path.isfile(loc_rec):
-                    try:
-                        s3.downloadObject(rem_hdf5, loc_hdf5)
-
-                        t1 = time.time()
-
-                        # internally it will add a suffix SUCH AS `_<num>.tiff``
-                        write_tiff_filename = f"{loc}/{r_prefix}/i"
-
-                        # reconstruct versioning here
-                        if reconstruction_version == 1:
-                            from nsdf.material_science_workflow.reconstruct_v1 import reconstruct_image
-                            vmin, vmax = reconstruct_image(
-                                loc_hdf5, write_tiff_filename, I1, I2, rotation_center, write_tiff_digit=write_tiff_digit)
-
-                        elif reconstruction_version == 2:
-                            from nsdf.material_science_workflow.reconstruct_v2 import reconstruct_image
-
-                            # generate the white  for reconstruction
-                            if white_universal is None:
-                                t1 = time.time()
-                                logger.info(f"Loading white...")
-                                white_key = "fly_scan_id_112509.h5"
-                                s3.downloadObject(
-                                    f"s3://Pania_2021Q3_in_situ_data/hdf5/{white_key}", f"{loc}/hdf5/{white_key}")
-                                import h5py
-                                Data_Universal = h5py.File(
-                                    f"{loc}/hdf5/{white_key}", 'r')
-                                white_universal = Data_Universal['img_bkg']
-                                del Data_Universal
-                                sec = time.time()-t1
-                                logger.info(f"Loaded white in {sec} seconds")
-
-                            vmin, vmax = reconstruct_image(
-                                loc_hdf5, write_tiff_filename, I1, I2, rotation_center, white_universal, write_tiff_digit=write_tiff_digit)
-
-                        else:
-                            raise Exception(
-                                f"unsupported version {reconstruction_version}")
-
-                        logger.info(
-                            f" Reconstruction {rem_hdf5} {I1}/{I2}vmin {vmin} vmax {vmax} loc_rec({loc_rec}) reconstruction_version({reconstruction_version})  done in {time.time()-t1} seconds")
-                        assert os.path.isfile(loc_rec)
-
-                    except Exception as ex:
-                        # I want to see the error on the master terminal
-                        logger.error(ex, exc_info=True)
-
-                if os.path.isfile(loc_rec):
-                    s3.uploadObject(loc_rec, rem_rec)
-            #		uploader.put(loc_rec, rem_rec)  ###possible bug on thread concurrency issues, comment out to use single upload
-
-        if not disable_segmentation:
-
-            if rem_seg in s3_s:
-                # logger.info(f"Segmentation {rem_rec} already exists, skipping")
-                pass
-
-            else:
-                if not os.path.isfile(loc_seg):
-
-                    if trained_model is None:
-                        t1 = time.time()
-                        from nsdf.material_science_workflow.segment_v1 import load_new_model
-                        logger.info(f" Loading trained model...")
-                        trained_model = load_new_model(GetPackageFilename(
-                            "material_science_workflow/resources/seg_msd_50_2_ep100"))
-                        logger.info(
-                            f"Loaded trained model in {time.time()-t1} seconds")
-
-                    try:
-                        s3.downloadObject(rem_rec, loc_rec)
-                        t1 = time.time()
-                        from nsdf.material_science_workflow.segment_v1 import process_whole_image, load_new_model
-                        assert os.path.basename(
-                            loc_rec) == os.path.basename(loc_seg)
-                        bname = os.path.basename(loc_rec)
-                        process_whole_image(os.path.dirname(
-                            loc_rec),  os.path.dirname(loc_seg), bname, trained_model)
-                        assert os.path.isfile(loc_seg)
-                        logger.info(
-                            f" Segmentation {rem_hdf5} {I}/{tot_slices} {loc_seg} done in {time.time()-t1} seconds")
-
-                    except Exception as ex:
-                        # I want to see the error on the master terminal
-                        logger.error(ex, exc_info=True)
-
-                if os.path.isfile(loc_seg):
-                    s3.uploadObject(loc_seg, rem_seg)
-                    #uploader.put(loc_seg, rem_seg)
+        
+        Reconstruction(rem_rec, s3_r, slice_to_process, slab_size, tot_slices, rem_hdf5, loc_hdf5,
+                       loc, rem, loc_rec, r_prefix, s3, rotation_center, reconstruction_version, write_tiff_digit)
 
     # wait for all files
-    # try:
-         #       uploader.waitAndExit()
-
-    # except KeyboardInterrupt:
-         #       print("no traceback")
     # uploader.waitAndExit() ###possible bug on thread concurrency issues, comment out to use single upload
-
-    # clean up
-    if True:
-        rmfile(loc_hdf5)
-        shutil.rmtree(f"{loc}/{r_prefix}", ignore_errors=True)
-        shutil.rmtree(f"{loc}/{s_prefix}", ignore_errors=True)
-
-    # free GPU memory
-    if trained_model:
-        del trained_model
 
     logger.info(f"Preprocess {rem_hdf5} done in {time.time()-T1} seconds")
     return True
@@ -283,6 +227,7 @@ def PreprocessMain(workflow):
 
     env = workflow["env"]
     files = workflow["files"]
+    #logger.info(f"file {files} and range {lenfiles}")
     tot_slices = files[0]["tot-slices"]  # assume they are alll the same
     summarize = "--summarize" in sys.argv
 
@@ -294,44 +239,30 @@ def PreprocessMain(workflow):
         if file_range[1] < 0:
             file_range[1] = len(files)
         files = [files[I] for I in range(*file_range)]
-
+    
     # slice range
     if True:
         slice_range = workflow["slice-range"]
+        logger.info(f"slide_rang: {slice_range}")
         if isinstance(slice_range, str):
             slice_range = ParseRangeFromString(slice_range)
 
         if slice_range[1] < 0:
             slice_range[1] = tot_slices
-
+    logger.info(f"tell me the slide_rang now: {slice_range}")
+    file = files[0]
     ARGS = [{
         "hdf5_url": file["url"],
         "rotation_center": file["rotation-center"],
             "reconstruction_version": file["reconstruction-version"],
             "tot_slices": int(file["tot-slices"]),
-            "disable_reconstruction": workflow["disable-reconstruction"],
-            "disable_segmentation": workflow["disable-segmentation"],
-            "slice_range": slice_range,
-            "summarize": summarize,
+            "disable_reconstruction": workflow["disable-reconstruction"],          
+            "slice_to_process": slice,            
             }
-            for file in files]
+            for slice in range(tot_slices)]
+    # for file in files]
 
-    if summarize:
-        stats = {}
-        p = ThreadPool(128)
-        t1 = time.time()
-        result = p.map(CallPreprocess, ARGS)
-        TOT_SLICES, RNUM, RSIZE, SNUM, SSIZE = [0]*5
-        for (rem_hdf5, tot_slices, rnum, rsize, snum, ssize) in result:
-            CollectPreprocessStats(stats, os.path.basename(
-                rem_hdf5), tot_slices, rnum, rsize, snum, ssize)
-            TOT_SLICES, RNUM, SNUM, RSIZE, SSIZE = TOT_SLICES + \
-                tot_slices, RNUM+rnum, SNUM+snum, RSIZE+rsize, SSIZE+ssize
-        CollectPreprocessStats(stats, "TOTAL", TOT_SLICES,
-                               RNUM, RSIZE, SNUM, SSIZE)
-        logger.info("")
-        sys.exit(0)
-
+    logger.info(f"args ok!")
     if "dask" in workflow and bool(workflow["dask"].get("enabled", False)):
 
         inventory = workflow["dask"]["inventory"]
@@ -359,7 +290,8 @@ def PreprocessMain(workflow):
 
         def SetupWorkerEnv():
             import os
-            assert "AWS_ACCESS_KEY_ID" in os.environ
+          # check environment setting if complaining the key
+            assert "AWS_ACCESS_KEY_ID" in os.environ  # issues whne
 
             # check that I don't see multiple GPUs
             devices = os.environ.get('CUDA_VISIBLE_DEVICES', None)
@@ -372,7 +304,7 @@ def PreprocessMain(workflow):
             tasks = []
             with Flow("nsdf-flow") as flow:
                 for args in ARGS:
-                    tasks.append(PreprocessTask(args))
+                    tasks.append(PreprocessTask(args))  # reconstruction///Zhou
             state = cluster.execute(flow, tasks)
 
         cluster.close()
@@ -381,13 +313,16 @@ def PreprocessMain(workflow):
         FixTensorFlowProblem()
         for args in ARGS:
             CallPreprocess(args)
+           
+
+# /////////////////////////////////////
 
 
 def CheckObjectExist(it):
     s3 = S3(logger)
     return (it["creates"], s3.existObject(it["creates"]))
 
-
+# ////////////////////////////////////////////////////////
 @task
 def ConvertImageStackTask(d):
     from nsdf.convert import ConvertImageStack
@@ -398,8 +333,6 @@ def ConvertImageStackMain(workflow):
 
     env = workflow["env"]
     files = workflow.pop("files")
-
-    summarize = "--summarize" in sys.argv
 
     # file range
     if True:
@@ -460,7 +393,7 @@ def ConvertImageStackMain(workflow):
             print(*it)
         sys.exit(0)
 
-    # run in parallel on dask?
+  
     if "dask" in workflow and bool(workflow["dask"].get("enabled", False)):
 
         inventory = workflow["dask"]["inventory"]
@@ -480,6 +413,7 @@ def ConvertImageStackMain(workflow):
         def SetupWorker():
             import os
             # check I am getting the environment variables
+           # os.environ['AWS_ACCESS_KEY_ID'] = '679JYS0BFPLDDA3C975U'
             assert "AWS_ACCESS_KEY_ID" in os.environ
             logger.info(f"DASK worker env READY")
 
