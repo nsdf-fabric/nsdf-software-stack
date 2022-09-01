@@ -1,6 +1,6 @@
 import os,sys,time, subprocess, shlex
 
-#each directory is ~50GB , total drectories 862 , overall 43TB
+
 
 # /////////////////////////////////////////
 def ExecuteShellCommand(cmd):
@@ -72,6 +72,10 @@ if __name__=="__main__":
 	nsdf4# WORKER_ID=2 NUM_WORKERS=5 python3 nsdf/ipfs/upload.py
 	nsdf5# WORKER_ID=3 NUM_WORKERS=5 python3 nsdf/ipfs/upload.py
 	nsdf6# WORKER_ID=4 NUM_WORKERS=5 python3 nsdf/ipfs/upload.py
+ 
+	# each directory is ~50GB , total drectories 862 , overall 43TB
+	# 107 done so far
+	find /mnt/shared/.done/ -type f | wc -l
 	"""
 
 	WORKER_ID=int(os.environ.get("WORKER_ID",0))

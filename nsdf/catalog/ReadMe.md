@@ -133,7 +133,6 @@ set <listen_host>::</listen_host> (dangerous!)
 
 Check connectivity:
 
-
 ```
 sudo netstat -antp|grep LIST|grep clickhouse
 sudo vi /etc/clickhouse-server/config.xml
@@ -433,6 +432,7 @@ Statistics
 ## Zenodo
 
 using zenodopy client (https://github.com/lgloege/zenodopy).
+
 Important to mention:
 - each API request cannot return more than 10K items, so I am doing the queries partitioning the time from 20100101 to today() with a delta-days of 5
 - with a delta of 5 days we do (2022-2010)*365/5=~876 network requests
@@ -457,6 +457,36 @@ Statistics
 - network-upload-bytes=46,367,940 (46MB)
 - network-download-bytes=4,238,454,624 (4GB)
 - total-seconds=19734 (5.4 hours)
+
+
+# Dryad
+
+
+Using flat RESTFUL Api api (https://datadryad.org/api/v2/docs/)
+ Anonymous users of the API are limited to 30 requests per minute
+
+
+Statistics
+- num-datasets=48974
+- num-records=309,568
+- tot-size=53,487,852,243,046 (53TB)
+- network-upload-bytes=XXX
+- network-download-bytes=YYYY
+- total-seconds=112288 (31 hours)
+
+# NEON
+
+Using RESTful API
+I am limiting the requests
+
+Statistics
+- num-datasets= (==num_produts)
+- num-records=6,268,756 (6M)
+- tot-size=244,350,051,764,286 (222TB)
+- network-upload-bytes=XXX
+- network-download-bytes=YYYY
+- total-seconds=<6 hours
+
 
 
 ## OpenVisus

@@ -2,10 +2,18 @@
 import os,sys,requests,time, datetime,urllib3, requests,json,copy, psutil, json, csv, functools
 import pprint
 from pprint import pprint, pformat
+
+
+sys.path.append(".")
 from nsdf.kernel import WorkerPool
+
+num_cached_response=0
+num_network_response=0
 
 # ///////////////////////////////////////////////////////////////////////////////////
 def GetCyverseResponse(url, headers=None, params=None, cache_dir="/srv/nvme0/nsdf/cyverse-cache"):
+
+	global num_cached_response,num_network_response
 
 	# I don't want the token to be considered for caching
 	headers_copy=copy.deepcopy(headers)
@@ -20,17 +28,19 @@ def GetCyverseResponse(url, headers=None, params=None, cache_dir="/srv/nvme0/nsd
 
 	cache_filename=os.path.join(cache_dir,f"{m5}.json")
 	if os.path.isfile(cache_filename):
-		print("Reading",cache_filename)
+		# print("Reading",cache_filename)
 		with open(cache_filename,"r") as fin:
+			num_cached_response+=1
 			return json.loads(fin.read())
 	else:
+		num_network_response+=1
 		ret=requests.get(url, verify=True, timeout=(10,60), headers=headers, params=params)
 		ret.raise_for_status()
 		ret=ret.json()
 		os.makedirs(os.path.dirname(cache_filename),exist_ok=True)
 		with open(cache_filename,"w") as fout:
 			fout.write(json.dumps(ret))
-		print("Wrote",cache_filename,"for",url)
+		# print("Wrote",cache_filename,"for",url)
 		return ret
 
 # ///////////////////////////////////////////////////////////////////////////////////
@@ -87,21 +97,28 @@ def Main():
 			files=[file for file in folder_body.get('files',[]) if 'path' in file and 'file-size' in file]
 
 		except Exception as ex:
-			print("ERROR",ex)
+			# print("ERROR",ex)
 			return
 
-		print(f"Processing folder={folder} num-folders={len(sub_folders)} num-files={len(files)}")
+		# print(f"Processing folder={folder} num-folders={len(sub_folders)} num-files={len(files)}")
 		for file in files:
 			# catalog,bucket,name,size,last_modified,etag	
 			row=["cyverse",os.path.dirname(file['path']),os.path.basename(file['path']),file['file-size'],file.get('date-modified',''),'']
 			pool.results.put(row)
-
 	
-	sys.path.append(".")
+ 
 	pool=WorkerPool()
 	pool.setMaxConcurrency(4)
 	pool.pushTask(functools.partial(MyTask,pool, ROOT_FOLDER))
 
+	t1=time.time()
+ 
+	def print_stats(force=False):
+		nonlocal t1
+		if force or (time.time()-t1)>2.0:
+			t1=time.time()
+			io2 = psutil.net_io_counters()
+			print(f"tot_size={tot_size:,} tot_size-tb={tot_size/1024**4:.2f} num_files={num_files:,} num_cached_response={num_cached_response} num_network_response={num_network_response} num-network-upload-bytes={io2.bytes_sent - io1.bytes_sent:,} network-download-bytes={io2.bytes_recv - io1.bytes_recv:,} sec={time.time()-T1:.2f}")
 
 	with open('/srv/nvme1/nsdf/cyverse.csv', 'w') as fout:
 		csv_writer = csv.writer(fout)
@@ -110,11 +127,9 @@ def Main():
 			csv_writer.writerow(row)
 			tot_size+=row[3]
 			num_files+=1   
-			io2 = psutil.net_io_counters()
-			print(f"tot_size={tot_size:,} tot_size-tb={tot_size/1024**4:.2f} num_files={num_files:,} num-network-upload-bytes={io2.bytes_sent - io1.bytes_sent:,} network-download-bytes={io2.bytes_recv - io1.bytes_recv:,} sec={time.time()-T1:.2f}")
-
-  
-  
+			print_stats()
+		print_stats(force=True)
+ 
 # ///////////////////////////////////////////////////////////////////////////////////
 if __name__=="__main__":
 	Main()

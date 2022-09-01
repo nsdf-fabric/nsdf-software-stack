@@ -3,10 +3,11 @@ import pprint
 from pprint import pprint, pformat
 import json, csv
 
-from ratelimit import limits, RateLimitException, sleep_and_retry
+
 
 
 # ///////////////////////////////////////////////////////////////////////////////////
+from ratelimit import limits, RateLimitException, sleep_and_retry
 @sleep_and_retry
 @limits(calls=30, period=60) 
 def GetJSONResponse(url, headers=None, params=None):
@@ -42,6 +43,8 @@ def GetDryadResponse(url, headers=None, params=None, cache_dir="/srv/nvme0/nsdf/
 
 # ///////////////////////////////////////////////////////////////////////////////////
 def Main():
+ 
+	csv_filename='/srv/nvme1/nsdf/dryad.csv'
 
 	io1 = psutil.net_io_counters()
 	T1=time.time()
@@ -72,7 +75,7 @@ def Main():
 
 	# https://datadryad.org/api/v2/docs/
 	# curl -X GET "https://datadryad.org/api/v2/datasets?page=0&per_page=100" -H "accept: application/json"
-	with open('/srv/nvme1/nsdf/dryad.csv', 'w') as fout:
+	with open(csv_filename, 'w') as fout:
 		csv_writer = csv.writer(fout)
   
 		num_files,tot_size=0,0
