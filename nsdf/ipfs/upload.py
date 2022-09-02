@@ -74,8 +74,8 @@ if __name__=="__main__":
 	nsdf6# WORKER_ID=4 NUM_WORKERS=5 python3 nsdf/ipfs/upload.py
  
 	# each directory is ~50GB , total drectories 862 , overall 43TB
-	# 107 done so far
-	find /mnt/shared/.done/ -type f | wc -l
+	# 510 done so far
+	while [[ 1 == 1 ]] ; do (find /mnt/shared/.done/ -type f | wc -l) && sleep 60 ; done
 	"""
 
 	WORKER_ID=int(os.environ.get("WORKER_ID",0))
