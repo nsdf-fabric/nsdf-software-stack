@@ -211,10 +211,14 @@ class S3:
 		bucket,key=S3.NormalizeUrl(url)
 		size_mb=os.path.getsize(filename)//(1024*1024)
 		t1=time.time()
-		self.s3.upload_file(filename, bucket, key)
+		self.s3.upload_file(filename, bucket, key)		
 		# assert self.existObject(key)
 		sec=time.time()-t1
 		self.logger.info(f"s3-upload-file {filename} {url} {size_mb}MiB done in {sec} seconds")
+		## free memory
+		import gc
+		del filename
+		gc.collect()
 
 	# existObject
 	def existObject(self, url):
