@@ -15,7 +15,7 @@ def S3ParseUrl(url, is_folder=False):
 	return bucket,key,qs
 
 # /////////////////////////////////////////////////////////
-def GuessEndPoint(profile,aws_config_filename='~/.aws/config'):
+def S3GuessEndPoint(profile,aws_config_filename='~/.aws/config'):
 	"""
 	[profile cloudbank]
 	region = us-west-1
@@ -67,7 +67,7 @@ class S3:
   
 		self.client=self.session.client(
 			's3',
-			endpoint_url=GuessEndPoint(profile) if profile else None, 
+			endpoint_url=S3GuessEndPoint(profile) if profile else None, 
 			config=botocore_config, 
 			verify=False if no_verify_ssl else True
 			)
