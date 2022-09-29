@@ -1,8 +1,10 @@
 import os,sys
 
+
+
 # ////////////////////////////////////////////////////////////////////////////
 if __name__=="__main__":
-	from nsdf.kernel import  SetupLogger
+	from nsdf.kernel import SetupLogger,logger
 	
 	import logging
 	os.makedirs("/tmp/nsdf",exist_ok=True)

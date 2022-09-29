@@ -139,8 +139,7 @@
     # vault
     git clone git@github.com:nsdf-fabric/vault.git ~/.nsdf/vault
     mkdir -p ~/.aws/
-    cp ~/.nsdf/vault/aws_config      ~/.aws/config
-    cp ~/.nsdf/vault/aws_credentials ~/.aws/credentials
+    cp ~/.nsdf/vault/aws/* ~/.aws/
 
     # software stack
     git clone git@github.com:nsdf-fabric/nsdf-software-stack.git ~/nsdf-software-stack

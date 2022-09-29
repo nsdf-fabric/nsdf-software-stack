@@ -2,7 +2,7 @@
 import os,sys,logging,argparse,time,tempfile,json
 
 from nsdf.kernel import SetupLogger,logger
-from nsdf.s3 import ListObjects,CopyObjects
+
 
 
 # ////////////////////////////////////////////////////
@@ -28,6 +28,7 @@ def Main(args):
 		logger.info(f"Got args {args}")
 		
 		t1=time.time()
+		from nsdf.s3 import ListObjects
 		ls=ListObjects(args.url,args.only_dirs)
 		for obj in ls:
 			print(json.dumps(obj, default=str))
@@ -90,6 +91,7 @@ while [[ 1 == 1 ]] ; do WORKER_ID=0 NUM_WORKERS=1 python3 -m nsdf.s3 copy-object
 		# make sure you have enough space 
 		os.makedirs(tmp_dir,exist_ok=True)  
 		with tempfile.TemporaryDirectory(prefix=tmp_dir) as tmpdirname:
+			from nsdf.s3 import CopyObjects
 			cp=CopyObjects(args.src,args.dst,tmpdirname)
 			for src_row,dst_row,error_msg in cp:
 				cp.dst.db.execute('INSERT INTO sealstorage VALUES',[dst_row])

@@ -16,7 +16,7 @@ def GetWorkerId():
 		from dask.distributed import get_worker
 		worker_id =get_worker().id
 	except:
-		worker_id = 0
+		worker_id = str(threading.get_ident())
 
 	return ip + "-" + str(worker_id)[-3:]
 

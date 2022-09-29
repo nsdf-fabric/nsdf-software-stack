@@ -147,8 +147,7 @@
     rm -Rf ~/.nsdf/vault
     git clone git@github.com:nsdf-fabric/vault.git ~/.nsdf/vault
     mkdir -p ~/.aws/
-    cp ~/.nsdf/vault/aws_config      ~/.aws/config
-    cp ~/.nsdf/vault/aws_credentials ~/.aws/credentials
+    cp ~/.nsdf/vault/aws/*      ~/.aws/
 
     # software stack    
     rm -Rf ~/nsdf-software-stack
