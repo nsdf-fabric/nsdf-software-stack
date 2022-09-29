@@ -59,8 +59,6 @@ def Main():
 	# https://de.cyverse.org/data/ds/iplant/home/shared/NEON_workshop/data
 	ROOT_FOLDER='/iplant/home/shared'
 	csv_filename='/srv/nvme1/nsdf/cyverse.csv'
- 
-	
 	
 	# https://de.cyverse.org/terrain/docs/index.html
 	"""
@@ -72,16 +70,12 @@ def Main():
 	 ...
 
  	"""
-
-	username = os.environ["CYVERSE_USERNAME"]
-	password = os.environ["CYVERSE_PASSWORD"]
-	CYVERSE_TOKEN = requests.get("https://de.cyverse.org/terrain/token", auth=(username, password)).json()['access_token']
-	print("Got CYVERSE_TOKEN",CYVERSE_TOKEN)
-
+	CYVERSE_TOKEN=None
+	last_token=None
+ 
 	io1 = psutil.net_io_counters()
 	T1=time.time()
  
-
 	NUM_FILES,TOT_SIZE=0,0
 
 	t1=time.time()
@@ -92,11 +86,19 @@ def Main():
 			io2 = psutil.net_io_counters()
 			print(f"current_folder={current_folder} tot_size={TOT_SIZE:,} tot_size-tb={TOT_SIZE/1024**4:.2f} num_files={NUM_FILES:,} num_cached_response={num_cached_response:,} num_network_response={num_network_response:,} num-network-upload-bytes={io2.bytes_sent - io1.bytes_sent:,} network-download-bytes={io2.bytes_recv - io1.bytes_recv:,} sec={time.time()-T1:.2f}")
 
-
 	def Traverse(csv_writer, folder,rec):
-   
+		
 		nonlocal NUM_FILES,TOT_SIZE
 		CACHE_DIR="/srv/nvme0/nsdf/cyverse-cache"
+
+		# renew token every X minutes
+		nonlocal CYVERSE_TOKEN, last_token
+		if last_token is None or (last_token-time.time())>20*60:
+			username = os.environ["CYVERSE_USERNAME"]
+			password = os.environ["CYVERSE_PASSWORD"]
+			CYVERSE_TOKEN = requests.get("https://de.cyverse.org/terrain/token", auth=(username, password)).json()['access_token']
+			print("Got CYVERSE_TOKEN",CYVERSE_TOKEN)
+			last_token=time.time()
   
 		folder_body = GetCachedResponse(
     								f"{CACHE_DIR}{folder}.json",
