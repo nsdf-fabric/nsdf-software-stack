@@ -10,7 +10,7 @@ from PyQt5.QtGui import QFont
  # //////////////////////////////////////////////////////////
 class Browser(QTableWidget):
   
-	def __init__(self,url="s3://",s3=S3()):
+	def __init__(self,s3):
 		QTableWidget.__init__(self)
 		self.s3=s3
 		self.url=None
@@ -21,7 +21,6 @@ class Browser(QTableWidget):
 		font.setPixelSize(18)
 		self.setFont(font)  
 		self.resize_cols=True
-		self.setUrl(url)
 
 	# goParent
 	def goParent(self):
@@ -31,6 +30,7 @@ class Browser(QTableWidget):
 	# setUrl
 	def setUrl(self,url): 
 		print("setUrl",url)
+		url=url.split("?",maxsplit=1)[0] # remove any query stugff (that may be needed to set the profile e.g. ?profile=wasabi)
 		if not url.startswith("s3://"): return
 		if not url.endswith(("/")): url=url+"/"
 		self.url=url
@@ -67,12 +67,13 @@ class Browser(QTableWidget):
 			url=self.url + self.item(R,0).text()
 			if url.endswith("/"):
 				self.setUrl(url)
-    
 
 	@staticmethod
-	def run(url=None):
+	def run(url):
 		from nsdf.s3 import S3
+		s3=S3(url)
 		app = QApplication(sys.argv)
-		browser = Browser(url)
+		browser = Browser(s3)
+		browser.setUrl(url)
 		browser.showMaximized()
 		sys.exit(app.exec_())   

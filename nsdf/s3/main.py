@@ -101,6 +101,9 @@ while [[ 1 == 1 ]] ; do WORKER_ID=0 NUM_WORKERS=1 python3 -m nsdf.s3 copy-object
 	if action=="browser":
 		"""
 		AWS_PROFILE=wasabi NO_VERIFY_SSL=1 python -m nsdf.s3 browser s3://
+  
+		# for windows under WSL
+		python.exe -m nsdf.s3 browser s3://?profile=wasabi
 		"""
 		from nsdf.s3.browser import Browser
 		Browser.run(action_args[0] if action_args else "s3://")

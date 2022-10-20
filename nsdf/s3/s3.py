@@ -15,7 +15,7 @@ def S3ParseUrl(url, is_folder=False):
 	return bucket,key,qs
 
 # /////////////////////////////////////////////////////////
-def S3GuessEndPoint(profile,aws_config_filename='~/.aws/config'):
+def S3GuessEndPoint(profile,aws_config_filename):
 	"""
 	[profile cloudbank]
 	region = us-west-1
@@ -24,7 +24,7 @@ def S3GuessEndPoint(profile,aws_config_filename='~/.aws/config'):
 	"""
 	import configparser
 	config = configparser.ConfigParser()
-	config.read_file(open(os.path.expanduser(aws_config_filename)))
+	config.read_file(open(aws_config_filename))
 	v=[v for k,v in config.items(f'profile {profile}') if k=="s3"]
 	if not v: return None
 	body="[Default]\n"+v[0]
@@ -41,7 +41,6 @@ class S3:
      
 		profile=os.environ.get("AWS_PROFILE",None)
 		no_verify_ssl=bool(os.environ.get("NO_VERIFY_SSL",False))
-
 		if url:
       
 			__bucket,__key,qs=S3ParseUrl(url)
@@ -65,9 +64,14 @@ class S3:
 		logger.info(f"Creating S3 url={url} with {num_connections} number of connections")
 		botocore_config = botocore.config.Config(max_pool_connections=self.num_connections)
   
+		aws_config_filename=os.path.expanduser('~/.aws/config')
+		print("aws_config_filename",aws_config_filename) 
+		print("profile",profile)
+		assert(os.path.isfile(aws_config_filename))
+  
 		self.client=self.session.client(
 			's3',
-			endpoint_url=S3GuessEndPoint(profile) if profile else None, 
+			endpoint_url=S3GuessEndPoint(profile,aws_config_filename) if profile else None, 
 			config=botocore_config, 
 			verify=False if no_verify_ssl else True
 			)
