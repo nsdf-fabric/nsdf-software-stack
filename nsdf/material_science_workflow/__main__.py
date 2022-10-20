@@ -94,8 +94,8 @@ def Preprocess(
     s_prefix = f"workflow/{key}/s/tif"
 
     # support rehentrant i.e. if I already have the tiff files avoid to reproduce them
-    s3_r = [obj for obj in s3.listObjects(f"{rem}/{r_prefix}", verbose=False)]
-    s3_s = [obj for obj in s3.listObjects(f"{rem}/{s_prefix}", verbose=False)]
+    s3_r = [obj for obj in s3.listObjects(f"{rem}/{r_prefix}", verbose=False) if not obj['url'].endswith("/")]
+    s3_s = [obj for obj in s3.listObjects(f"{rem}/{s_prefix}", verbose=False) if not obj['url'].endswith("/")]
 
     if summarize:
         rnum = len(s3_r)
@@ -104,8 +104,8 @@ def Preprocess(
         ssize = sum([int(it['Size']) for it in s3_s])
         return (rem_hdf5, tot_slices, rnum, rsize, snum, ssize)
 
-    s3_r = [f"s3://{bucket}/{obj['Key']}" for obj in s3_r]
-    s3_s = [f"s3://{bucket}/{obj['Key']}" for obj in s3_s]
+    s3_r = [obj['url'] for obj in s3_r]
+    s3_s = [obj['url'] for obj in s3_s]
 
     logger.info(
         f" Preprocess hdf5({rem_hdf5}) rotation-center({rotation_center}) slice-range({slice_range}) recontructions({len(s3_r)}/{tot_slices}) segmentations({len(s3_s)}/{tot_slices}) ...")

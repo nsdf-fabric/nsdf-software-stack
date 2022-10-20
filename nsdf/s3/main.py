@@ -3,8 +3,6 @@ import os,sys,logging,argparse,time,tempfile,json
 
 from nsdf.kernel import SetupLogger,logger
 
-
-
 # ////////////////////////////////////////////////////
 def Main(args):
 	# see https://github.com/wbingli/awscli-plugin-endpoint
@@ -97,4 +95,9 @@ while [[ 1 == 1 ]] ; do WORKER_ID=0 NUM_WORKERS=1 python3 -m nsdf.s3 copy-object
 				cp.dst.db.execute('INSERT INTO sealstorage VALUES',[dst_row])
 				# print(src_row[0],dst_row[0],error_msg)
 
+		return 
+
+	if action=="s3browser":
+		from nsdf.s3.browser import S3Browser
+		S3Browser.run()
 		return 

@@ -104,7 +104,7 @@ def ListObjectsV2(client, bucket, folder, continuation_token=None,MaxKeys=1000):
 	folders=resp.get('CommonPrefixes',[])
  
 	next_continuation_token = resp.get('NextContinuationToken',None)
-	logger.debug(f"listObjects  bucket={bucket} folder={folder} num-folders={len(folders)} num-files={len(files)} next_continuation_token={next_continuation_token}")	
+	logger.debug(f"ListObjectsV2  bucket={bucket} folder={folder} num-folders={len(folders)} num-files={len(files)} next_continuation_token={next_continuation_token}")	
 
 	return (files,folders,next_continuation_token)
 

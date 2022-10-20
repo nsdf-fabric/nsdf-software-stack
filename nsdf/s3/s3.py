@@ -39,12 +39,12 @@ class S3:
 	# constructor
 	def __init__(self, url=None, num_connections=10):
      
-		profile=None
-		no_verify_ssl=False
+		profile=os.environ.get("AWS_PROFILE",None)
+		no_verify_ssl=bool(os.environ.get("NO_VERIFY_SSL",False))
 
 		if url:
       
-			bucket,key,qs=S3ParseUrl(url)
+			__bucket,__key,qs=S3ParseUrl(url)
 
 			if 'profile' in qs:
 				profile=qs['profile'][0]
@@ -142,15 +142,40 @@ class S3:
 		sec=time.time()-t1
 		logger.info(f"S3 delete folder {url} done in {sec} seconds")
 
-	# only objects, no fonderls
-	def listObjects(self, url):
-		bucket,key,qs=S3ParseUrl(url)
-		paginator = self.client.get_paginator('list_objects_v2')
-		pages = paginator.paginate(Bucket=bucket, Prefix=key) 
-		for page in pages:
-			for obj in page.get('Contents',[]):
-				if not obj['Key'].endswith("/"):
-					yield obj
+
+	def listObjects(self):
+	  
+		ret=[]
+	  
+		# return the list of buckets
+		if not url or url=="s3://":
+			for it in self.client.list_buckets()['Buckets']:
+				bucket=it['Name']
+				it['url']=f"s3://{bucket}/"
+				ret.append(it)
+			return ret 
+
+		# start from a bucket name
+		assert url.startswith("s3://")
+		if not url.endswith("/"): 
+			url+="/"
+   
+		v=url[5:].split("/",1)
+		bucket,key=v[0],v[1] if len(v)>1 else ""
+		response = self.client.list_objects(Bucket=bucket, Prefix=key, Delimiter='/')
+
+		# folders (end with /) have (Prefix,)
+		for it in response.get('CommonPrefixes',[]):
+			it['url']=f"s3://{bucket}/{it['Prefix']}"
+	  
+	  # objects have (ETag,Key,LastModified,Owner.DisplayName,Size,StorageClass,)
+		for it in response.get('Contents',[]):
+			it['url']=f"s3://{bucket}/{it['Key']}"
+			# there is an item which is the folder itself
+			if it['url']!=url:
+				ret.append(it)
+
+		return ret
 
 	def downloadImage(self, url):
 		ret=imageio.imread(io.BytesIO(self.getObject(url)))
