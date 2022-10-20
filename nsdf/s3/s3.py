@@ -143,7 +143,7 @@ class S3:
 		logger.info(f"S3 delete folder {url} done in {sec} seconds")
 
 
-	def listObjects(self):
+	def listObjects(self,url):
 	  
 		ret=[]
 	  
@@ -163,10 +163,14 @@ class S3:
 		v=url[5:].split("/",1)
 		bucket,key=v[0],v[1] if len(v)>1 else ""
 		response = self.client.list_objects(Bucket=bucket, Prefix=key, Delimiter='/')
+  
+		from pprint import pprint
+		pprint(response)
 
 		# folders (end with /) have (Prefix,)
 		for it in response.get('CommonPrefixes',[]):
 			it['url']=f"s3://{bucket}/{it['Prefix']}"
+			ret.append(it)
 	  
 	  # objects have (ETag,Key,LastModified,Owner.DisplayName,Size,StorageClass,)
 		for it in response.get('Contents',[]):

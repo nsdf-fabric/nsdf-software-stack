@@ -8,10 +8,10 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 
  # //////////////////////////////////////////////////////////
-class S3Browser(QTableWidget):
+class Browser(QTableWidget):
   
-	def __init__(self,s3,url="s3://"):
-		QTableWidget.__init__(self,s3)
+	def __init__(self,url="s3://",s3=S3()):
+		QTableWidget.__init__(self)
 		self.s3=s3
 		self.url=None
 		self.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -70,9 +70,9 @@ class S3Browser(QTableWidget):
     
 
 	@staticmethod
-	def run():
+	def run(url=None):
 		from nsdf.s3 import S3
-		app = QApplication(sys.args)
-		browser = S3Browser(S3())
+		app = QApplication(sys.argv)
+		browser = Browser(url)
 		browser.showMaximized()
 		sys.exit(app.exec_())   

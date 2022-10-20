@@ -11,6 +11,7 @@ def Main(args):
 	# aws configure --profile local set dynamodb.endpoint_url http://localhost:8000
 
 	action=args[1]
+	action_args=args[2:]
  
 	SetupLogger(logger, level=logging.INFO, handlers=[logging.StreamHandler()]) 
  
@@ -22,7 +23,7 @@ def Main(args):
 		parser = argparse.ArgumentParser(description=action)
 		parser.add_argument('--only-dirs',action='store_true')  
 		parser.add_argument('url',type=str)  
-		args=parser.parse_args(args[2:])
+		args=parser.parse_args(action_args)
 		logger.info(f"Got args {args}")
 		
 		t1=time.time()
@@ -82,7 +83,7 @@ while [[ 1 == 1 ]] ; do WORKER_ID=0 NUM_WORKERS=1 python3 -m nsdf.s3 copy-object
 		parser = argparse.ArgumentParser(description=action)
 		parser.add_argument('src',type=str)  
 		parser.add_argument('dst',type=str) 
-		args=parser.parse_args(args[2:])
+		args=parser.parse_args(action_args)
 		logger.info(f"{action} got args {args}")
 
 		tmp_dir="/srv/nvme0/nsdf/tmp"
@@ -97,7 +98,10 @@ while [[ 1 == 1 ]] ; do WORKER_ID=0 NUM_WORKERS=1 python3 -m nsdf.s3 copy-object
 
 		return 
 
-	if action=="s3browser":
-		from nsdf.s3.browser import S3Browser
-		S3Browser.run()
+	if action=="browser":
+		"""
+		AWS_PROFILE=wasabi NO_VERIFY_SSL=1 python -m nsdf.s3 browser s3://
+		"""
+		from nsdf.s3.browser import Browser
+		Browser.run(action_args[0] if action_args else "s3://")
 		return 
