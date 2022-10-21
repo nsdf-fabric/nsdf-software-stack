@@ -15,7 +15,7 @@ import prefect
 from prefect import Flow, Parameter, Task, task, unmapped
 
 from nsdf.kernel import logger, LoadYaml, rmfile, GetPackageFilename, RunCommand, SetupLogger, LoadYaml
-from nsdf.s3 import S3,S3Sync, S3ParseUrl
+from nsdf.s3 import S3
 from nsdf.distributed import NSDFDaskCluster
 
 
@@ -85,7 +85,7 @@ def Preprocess(
     rotation_center = float(rotation_center)
 
     s3 = S3(num_connections=uploader_num_connections)
-    bucket, key, qs = S3ParseUrl(rem_hdf5)
+    bucket, key, qs = S3.parseUrl(rem_hdf5)
     key = os.path.basename(key)
 
     loc_hdf5 = f"{loc}/hdf5/{key}"
@@ -110,8 +110,7 @@ def Preprocess(
     logger.info(
         f" Preprocess hdf5({rem_hdf5}) rotation-center({rotation_center}) slice-range({slice_range}) recontructions({len(s3_r)}/{tot_slices}) segmentations({len(s3_s)}/{tot_slices}) ...")
 
-    from nsdf.s3 import S3Uploader
-    uploader = S3Uploader(s3)
+    uploader = s3.createUploader()
 
     white_universal = None
     trained_model = None
@@ -426,7 +425,7 @@ def ConvertImageStackMain(workflow):
     ARGS = []
     for file in files:
 
-        bucket, key, qs = S3ParseUrl(file["url"])
+        bucket, key, qs = S3.parseUrl(file["url"])
         key = os.path.basename(key)
 
         whats = []

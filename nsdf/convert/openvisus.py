@@ -4,7 +4,7 @@ from multiprocessing.pool import ThreadPool
 import OpenVisus as ov
 
 from nsdf.kernel import logger, FileExists, TouchFile, SafeReplaceFile,rmdir
-from nsdf.s3 import S3, S3Sync
+from nsdf.s3 import S3
 
 # ////////////////////////////////////////////////////////////////////////////////////////
 """
@@ -409,7 +409,7 @@ def ConvertImageStack(
 
 	# sync with remote source
 	if src["remote"]:
-		S3Sync(logger, f"cloud-to-local",src["remote"], src["local"])
+		S3.sync(f"cloud-to-local",src["remote"], src["local"])
 
 	# convert
 	if True:
@@ -444,7 +444,7 @@ def ConvertImageStack(
 
 	# sync with remote destination
 	if dst["remote"]:
-		S3Sync(logger, f"local-to-cloud", os.path.dirname(dst['local']),os.path.dirname(dst['remote'])) 
+		S3.sync(f"local-to-cloud", os.path.dirname(dst['local']),os.path.dirname(dst['remote'])) 
 
 	# remove IDX (dst[local] is the idxfilename)
 	if not dst["keep-local"]:
@@ -480,7 +480,7 @@ def CopyDataset(
 
 	# sync with remote source
 	if src["remote"]:
-		S3Sync(logger, f"cloud-to-local",src["remote"], src["local"])
+		S3.sync(f"cloud-to-local",src["remote"], src["local"])
 
 	SRC=ov.LoadIdxDataset(src["local"])
 	
@@ -561,7 +561,7 @@ def CopyDataset(
 
 	# sync with remote destination
 	if dst["remote"]:
-		S3Sync(logger, f"local-to-cloud", os.path.dirname(dst['local']),os.path.dirname(dst['remote'])) 
+		S3.sync(f"local-to-cloud", os.path.dirname(dst['local']),os.path.dirname(dst['remote'])) 
 
 	# remove local destination (dst[local] is the idx filename)
 	if not dst["keep-local"]: 

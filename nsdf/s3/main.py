@@ -27,83 +27,22 @@ def Main(args):
 		logger.info(f"Got args {args}")
 		
 		t1=time.time()
-		from nsdf.s3 import ListObjects
-		ls=ListObjects(args.url,args.only_dirs)
-		for obj in ls:
+		from nsdf.s3 import S3
+		s3=S3(args.url)
+		for obj in s3.listObjectsInParallel(args.only_dirs):
 			print(json.dumps(obj, default=str))
 			sec=time.time()-t1	
 			if sec>=2.0: 
 				ls.printStatistics()
 				t1=time.time()
-   
 		return
-
-	# _________________________________________
-	if action=="copy-objects":
-     
-		"""
-  
-		sudo yum install -y yum-utils
-		sudo yum-config-manager --add-repo https://packages.clickhouse.com/rpm/clickhouse.repo
-		sudo yum install -y clickhouse-server clickhouse-client
-		sudo clickhouse start
-
-		clickhouse-client
-
-		# do this for pania and sealstorage
-		CREATE TABLE IF NOT EXISTS pania(
-		    Key varchar(1024),
-		    LastModified varchar(32),
-		    Etag varchar(16),
-		    Size UInt64,
-		    StorageClass varchar(16)
-		) 
-		ENGINE = MergeTree() 
-		ORDER BY(Key)
-		PRIMARY KEY(Key)
-		;
-		select count(*) from pania;
-
-		# 246M rows in 2m15.715s
-		time cat data/pania.json       | grep Key | clickhouse-client --query="INSERT INTO pania FORMAT JSONEachRow"
-  
-		#  15M rows in 0m11.774s
-		time cat data/sealstorage.json | grep Key | clickhouse-client --query="INSERT INTO sealstorage FORMAT JSONEachRow" 
-
-		# 14.034 sec	
-		# Processed 252.22 million rows, 25.63 GB (17.97 million rows/s., 1.83 GB/s.)
-		time clickhouse-client --query="SELECT count(*) FROM pania AS src LEFT JOIN (select Key from sealstorage) dst ON dst.Key=CONCAT('{Dprefix}',src.Key) WHERE dst.Key=''"
-  		"""
-		"""
-
-while [[ 1 == 1 ]] ; do WORKER_ID=0 NUM_WORKERS=1 python3 -m nsdf.s3 copy-objects \
-    "s3://Pania_2021Q3_in_situ_data?profile=wasabi&num-connections=128"  \
-    "s3://utah/buckets/Pania_2021Q3_in_situ_data?profile=sealstorage&num-connections=128&no-verify-ssl" ; done
-		"""
-		parser = argparse.ArgumentParser(description=action)
-		parser.add_argument('src',type=str)  
-		parser.add_argument('dst',type=str) 
-		args=parser.parse_args(action_args)
-		logger.info(f"{action} got args {args}")
-
-		tmp_dir="/srv/nvme0/nsdf/tmp"
-		# make sure you have enough space 
-		os.makedirs(tmp_dir,exist_ok=True)  
-		with tempfile.TemporaryDirectory(prefix=tmp_dir) as tmpdirname:
-			from nsdf.s3 import CopyObjects
-			cp=CopyObjects(args.src,args.dst,tmpdirname)
-			for src_row,dst_row,error_msg in cp:
-				cp.dst.db.execute('INSERT INTO sealstorage VALUES',[dst_row])
-				# print(src_row[0],dst_row[0],error_msg)
-
-		return 
 
 	if action=="browser":
 		"""
 		AWS_PROFILE=wasabi NO_VERIFY_SSL=1 python -m nsdf.s3 browser s3://
   
 		# for windows under WSL
-		python.exe -m nsdf.s3 browser s3://?profile=wasabi
+	  python.exe -m nsdf.s3 browser "s3://?profile=sealstorage&no-verify-ssl=1"
 		"""
 		from nsdf.s3.browser import Browser
 		Browser.run(action_args[0] if action_args else "s3://")
