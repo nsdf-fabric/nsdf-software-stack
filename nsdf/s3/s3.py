@@ -48,8 +48,9 @@ class S3:
 			verify=False if no_verify_ssl else True)
 
 	# parseUrl
-	@staticmethod(f)
+	@staticmethod
 	def parseUrl(url, is_folder=False):
+		from   urllib.parse import urlparse,parse_qs
 		parsed=urlparse(url)
 		qs=parse_qs(parsed.query, keep_blank_values=True)
 		scheme, bucket, key, qs=parsed.scheme, parsed.netloc, parsed.path, qs  
@@ -60,7 +61,7 @@ class S3:
 		return bucket,key,qs
 
 	# guessEndPoint
-	@staticmethod(f)
+	@staticmethod
 	def guessEndPoint(profile,aws_config_filename):
 		"""
 		[profile cloudbank]
@@ -79,7 +80,7 @@ class S3:
 		return endpoint_url
 
 	# sync
-	@staticmethod(f)
+	@staticmethod
 	def sync(name, src, dst, no_verify=False):
 		from nsdf.kernel import RunCommand
 	  
@@ -307,7 +308,7 @@ class S3:
 		   
 				kwargs=dict(Bucket=self.bucket, Prefix=folder['Prefix'], Delimiter='/', MaxKeys=MaxKeys) # cannot be more than 1000 
 				if continuation_token: 
-		    	kwargs['ContinuationToken']=continuation_token
+					kwargs['ContinuationToken']=continuation_token
 				resp = self.s3.client.list_objects_v2(**kwargs) 
 				files  =[] if self.only_dirs else resp.get('Contents',[]) 
 				folders=resp.get('CommonPrefixes',[])
