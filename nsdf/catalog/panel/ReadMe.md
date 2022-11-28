@@ -75,14 +75,21 @@ Check and modify the `docker-compose` as needed:
 Serve panel application *locally*, for debugging purpouse:
 
 ```
-panel serve --autoreload --address='0.0.0.0' --allow-websocket-origin='*' --port ${PANEL_PORT} --autoreload run.py 
+python3 -m panel serve --autoreload --address='0.0.0.0' --allow-websocket-origin='*' --port ${PANEL_PORT} --autoreload run.py 
 ```
 
 Serve using Docker 
 
 ```
-sudo docker build --tag nsdf/catalog:0.1 ./ 
-sudo docker-compose --env-file .env up # add `-d` for daemon mode
+# build the image
+sudo docker build --tag nsdf/catalog:0.1 ./
+
+# serve in foreground
+sudo docker-compose --env-file .env up
+
+
+# serve in daemon mode
+sudo docker-compose --env-file .env up -d
 
 # to shutdown
 # sudo docker-compose down

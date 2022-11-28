@@ -54,7 +54,7 @@ class NSDFCatalogDashboard:
 		self.catalog  = pn.widgets.Select(name='', options=['*'] + self.catalogs,value="")
 		self.catalog.param.watch(lambda evt: self.refresh(), 'value')
   
-		self.limit = pn.widgets.Select(options=["100","1000","1000","Unlimited"],value="1000")
+		self.limit = pn.widgets.Select(options=["100","1000","10000"],value="1000") # ,"Unlimited" DISABLED FOR now
 		self.limit.param.watch(lambda evt: self.refresh(), 'value')  
   
 		self.show={}
