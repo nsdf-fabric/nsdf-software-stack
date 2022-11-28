@@ -1,4 +1,17 @@
 # pip3 install Selenium BeautifulSoup chromedriver-binary
+
+"""
+It was basically an HTML scraping of this web site: https://www.naic.edu/datacatalog/index.php/datasets/view/
+
+Statistics:
+- num-datasets= ??? 
+- num-records=2,045,049
+- tot-size=491,912,368,698,644 (491TB)
+- network-upload-bytes= ???
+- network-download-bytes=???
+- total-seconds=???
+"""
+
 from bs4 import BeautifulSoup
 import requests,json,time
 from multiprocessing.pool import ThreadPool

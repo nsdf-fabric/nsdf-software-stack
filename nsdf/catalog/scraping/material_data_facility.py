@@ -1,5 +1,17 @@
 # see https://mdf-forge.readthedocs.io/en/master/examples/Example_Statistics-MDF_Datasets.html
 
+"""
+Using `mdf_forge` API (https://github.com/materials-data-facility/forge)
+
+Statistics
+- num-datasets=637 
+- num-records=1,206,801
+- tot-size=10,995,444,243,681 (10TB)
+- network-upload-bytes=208,706,961 (208MB)
+- network-download-bytes=1,305,295,310 (1GB NOTE: probably I am dowloading extra informations about the projects and there could be a "lighter" API)
+- total-seconds=797 (13 minutes)
+"""
+
 import time
 import pandas as pd
 from mdf_forge.forge import Forge

@@ -1,3 +1,19 @@
+"""
+There is a GitHub repo (https://github.com/awslabs/open-data-registry.git) that contains all projects.
+The datasets YAML files contains links to S3 buckets.
+At the end the scraping is a `aws s3 ls` inside the bucket. INternally I am using Python3 boto3 library using the resful API `list_objects_v2`, single worker
+
+Statistics
+- num-datasets=398 (NOTE: I am skipping  databases not public or charged at user-side, it could be I am missing some dataset becuase the scraping had some errors)
+- num-records=1,540,162,975 (1.5B)
+- tot-size=45,765,462,020,085,356 (45PB)
+- network-upload-bytes=160,564,493,346 (160GB)
+- network-download-bytes=430,477,563,129 (430GB)
+- total-seconds=294,366 (81 hours)
+
+(partial `g_num_objects=25,156,061 g_size=519,729,388,118,890 network-upload-bytes=2,622,560,245 network-download-bytes=7,031,151,906 sec=4808.44`)
+"""
+
 import os,time
 
 import boto3

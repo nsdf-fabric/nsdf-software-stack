@@ -1,0 +1,13 @@
+version: '2'
+
+services:
+  my-app:
+    image: nsdf/catalog:0.1
+    env_file:
+      - ./.env
+    volumes:
+      - ./run.py:/nsdf/run.py 
+    ports:
+      - ${PANEL_PORT}:${PANEL_PORT}
+    command: >
+      python3 -m panel serve --autoreload --address='0.0.0.0' --port=${PANEL_PORT} --allow-websocket-origin='*' /nsdf/run.py

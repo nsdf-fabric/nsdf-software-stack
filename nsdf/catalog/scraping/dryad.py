@@ -1,10 +1,21 @@
+"""
+Using flat RESTFUL Api api (https://datadryad.org/api/v2/docs/)
+ Anonymous users of the API are limited to 30 requests per minute
+
+
+Statistics
+- num-datasets=48974
+- num-records=309,568
+- tot-size=53,487,852,243,046 (53TB)
+- network-upload-bytes=XXX
+- network-download-bytes=YYYY
+- total-seconds=112288 (31 hours)
+"""
+
 import os,sys,requests,time, datetime,urllib3,psutil
 import pprint
 from pprint import pprint, pformat
 import json, csv
-
-
-
 
 # ///////////////////////////////////////////////////////////////////////////////////
 from ratelimit import limits, RateLimitException, sleep_and_retry

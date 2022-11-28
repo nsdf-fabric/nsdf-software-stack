@@ -1,3 +1,16 @@
+"""
+I didn't find an API to do the scraping (I am not sure 100% it does not exists) 
+so I am basically scraping HTML pages from https://www.digitalrocksportal.org and parting them with Python bs4 package
+
+Statistics
+- num-datasets=154 
+- num-records=139,393
+- tot-size=8,953,576,105,178 (9TB)
+- network-upload-bytes= 25,539,253 (25MB)
+- network-download-bytes=114,333,049  (114MB)
+- total-seconds=3080 (51 minutes)
+"""
+
 import requests,time
 from   urllib.parse import urlparse
 

@@ -1,3 +1,18 @@
+"""
+
+Using RESTful API
+I am limiting the requests
+
+Statistics
+- num-datasets= (==num_produts)
+- num-records=6,268,756 (6M)
+- tot-size=244,350,051,764,286 (222TB)
+- network-upload-bytes=XXX
+- network-download-bytes=YYYY
+- total-seconds=<6 hours
+
+
+"""
 
 import os,sys,requests,time, datetime,urllib3, requests,json,copy, psutil, json, csv, functools
 from this import d

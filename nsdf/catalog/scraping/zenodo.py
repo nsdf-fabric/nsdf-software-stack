@@ -1,3 +1,34 @@
+"""
+
+using zenodopy client (https://github.com/lgloege/zenodopy).
+
+Important to mention:
+- each API request cannot return more than 10K items, so I am doing the queries partitioning the time from 20100101 to today() with a delta-days of 5
+- with a delta of 5 days we do (2022-2010)*365/5=~876 network requests
+- probably using a delta larger we could get better numbers, but I found certain period of 5 days with more than 10K records
+- there is a rate limiter of 60 requests per minute and 2000 requests per hour (33 req/min), so I am using an overall 30 calls/min
+
+Rate limiter code:
+```
+from tkinter import E
+from ratelimit import limits, RateLimitException, sleep_and_retry
+
+@sleep_and_retry
+@limits(calls=30, period=60) 
+def GetJSONResponse(url):
+	... code here..
+```
+
+Statistics
+- num-datasets=1,012,474 (NOTE: using DOI as it was a dataset)
+- num-records=3,485,074 (3M)
+- tot-size=373,890,709,078,423 (373TB)
+- network-upload-bytes=46,367,940 (46MB)
+- network-download-bytes=4,238,454,624 (4GB)
+- total-seconds=19734 (5.4 hours)
+
+"""
+
 import os,sys,requests,time, datetime,urllib3
 import zenodopy
 from pprint import pprint

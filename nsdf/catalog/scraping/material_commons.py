@@ -1,3 +1,15 @@
+"""
+Using using `materials_commons.api` (https://github.com/materials-commons/materialscommons.org)
+
+Statistics:
+- num-datasets= 81 
+- num-records=131,091
+- tot-size=5,750,975,594,582 (5TB)
+- network-upload-bytes= 10,951,017 (10MB)
+- network-download-bytes=78,353,195 (78MB)
+- total-seconds=76
+"""
+
 import materials_commons.api as mcapi
 
 import os

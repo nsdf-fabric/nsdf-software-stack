@@ -1,4 +1,18 @@
 
+"""
+Using their restful API `search` (https://guides.dataverse.org/en/latest/api/search.html)
+Each requests returns 1000 records (seems a reasonable number, not sure if we can get better results with different page size).
+I am doing the search on all public dataverse 58  instances (see `dataverse.py` file for the instances list):
+
+Statistics
+- num-datasets=150,834  (using dataset_id)
+- num-records=2,596,905
+- tot-size=125,441,273,690,687 (125TB)
+- network-upload-bytes=2,742,687,197 (2GB)
+- network-download-bytes=25,975,441,077 (25GB)
+- total-seconds=18313 (5.08 hours)
+"""
+
 import csv,json,requests,os,sys, threading, time
 import concurrent.futures
 from pprint import pprint
