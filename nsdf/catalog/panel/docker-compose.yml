@@ -10,4 +10,4 @@ services:
     ports:
       - ${PANEL_PORT}:${PANEL_PORT}
     command: >
-      python3 -m panel serve --autoreload --address='0.0.0.0' --port=${PANEL_PORT} --allow-websocket-origin='*' /nsdf/run.py
+      python3 -m panel serve --autoreload --address='0.0.0.0' --allow-websocket-origin='*' --port=${PANEL_PORT} /nsdf/run.py
