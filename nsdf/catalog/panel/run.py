@@ -39,6 +39,12 @@ class NSDFCatalogDashboard:
 	# constructor
 	def __init__(self):
 
+		default_catalog      =str(pn.state.session_args.get("catalog",""))
+		default_limit        =str(pn.state.session_args.get("limit","1000"))
+		default_show_catalog =bool(pn.state.session_args.get("show_catalog",True))
+		default_show_bucket  =bool(pn.state.session_args.get("show_bucket",True))
+		default_show_ext     =bool(pn.state.session_args.get("show_ext",False))
+
 		self.client=Client(
 			host= os.environ["CLICKHOUSE_HOST"], 
 			port=str(os.environ["CLICKHOUSE_PORT"]), 
@@ -46,21 +52,22 @@ class NSDFCatalogDashboard:
 			password=os.environ["CLICKHOUSE_PASSWORD"], 
 			secure= os.environ["CLICKHOUSE_SECURE"])  
   
-
+		# https://panel.holoviz.org/gallery/simple/sync_location.html#simple-gallery-sync-location
+  
 		# total records and total size
 		NUM_FILES,TOT_BYTES=self.client.execute(f"SELECT SUM(num_files),SUM(tot_size) FROM nsdf.aggregated_catalog;")[0]
   
 		self.catalogs=[it[0] for it in self.client.execute("SELECT DISTINCT catalog from nsdf.catalog")]
-		self.catalog  = pn.widgets.Select(name='', options=['*'] + self.catalogs,value="")
+		self.catalog  = pn.widgets.Select(name='', options=['*'] + self.catalogs,value=default_catalog)
 		self.catalog.param.watch(lambda evt: self.refresh(), 'value')
   
-		self.limit = pn.widgets.Select(options=["100","1000","10000"],value="1000") # ,"Unlimited" DISABLED FOR now
+		self.limit = pn.widgets.Select(options=["100","1000","10000"],value=default_limit) # ,"Unlimited" DISABLED FOR now
 		self.limit.param.watch(lambda evt: self.refresh(), 'value')  
   
 		self.show={}
-		self.show["catalog"] = pn.widgets.Checkbox(name='Catalog'  ,value=True)
-		self.show["bucket" ] = pn.widgets.Checkbox(name='Bucket'   ,value=True)
-		self.show["ext"    ] = pn.widgets.Checkbox(name='Extension',value=False)
+		self.show["catalog"] = pn.widgets.Checkbox(name='Catalog'  ,value=default_show_catalog)
+		self.show["bucket" ] = pn.widgets.Checkbox(name='Bucket'   ,value=default_show_bucket)
+		self.show["ext"    ] = pn.widgets.Checkbox(name='Extension',value=default_show_ext)
 		for k,widget in self.show.items():
 			widget.param.watch(lambda evt: self.refresh(), 'value')
   
@@ -87,6 +94,12 @@ class NSDFCatalogDashboard:
 				pn.Row(self.tabulator),
 				width=1024
 			))
+  
+		pn.state.location.sync(self.catalog        , {'value': 'catalog'})
+		pn.state.location.sync(self.limit          , {'value': 'limit'})
+		pn.state.location.sync(self.show["catalog"], {'value': 'show_catalog'})
+		pn.state.location.sync(self.show["bucket"] , {'value': 'show_bucket'})
+		pn.state.location.sync(self.show["ext"]    , {'value': 'show_ext'})
   
 		self.refresh()
 

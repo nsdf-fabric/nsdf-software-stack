@@ -24,7 +24,7 @@ set +o allexport
 aws s3 --profile wasabi ls s3://
 
 # test clickhouse
-alias cc="clickhouse-client --receive_timeout 9999999 --host ${CLICKHOUSE_HOST} --port ${CLICKHOUSE_PORT} --secure --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD}"
+alias cc="clickhouse-client --receive_timeout 9999999 --host ${CLICKHOUSE_HOST} --port ${CLICKHOUSE_PORT} --max_partitions_per_insert_block 0 --secure --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD}"
 
 cc
 ```
@@ -65,7 +65,7 @@ SETTINGS index_granularity = 8192;
 # *** materialized view I believe could help us to speed up some queries (Need to ask Adam feedback on this) ***
 # *** NOTE: seems to me that this view is slowing A LOT the INSERT process                                   ***
 
-DROP view nsdf.aggregated_catalog;
+DROP VIEW IF EXISTS nsdf.aggregated_catalog;
 
 CREATE MATERIALIZED VIEW nsdf.aggregated_catalog 
 ENGINE = SummingMergeTree
@@ -118,7 +118,7 @@ done
 
 # overall statistivs (1,590,981,170 == 1.5 billion) (84,795,345,554,398,043 == 84 PiB)
 cc --query 'select count(name), SUM(size)from nsdf.catalog'
-cc --query 'select SUM(num_files), SUM(tot_size)from nsdf.aggregated_catalog'
+cc --query 'select SUM(num_files), SUM(tot_size) from nsdf.aggregated_catalog'
 
 # total number of catalogs (53 catalogs)
 # cc --query 'SELECT DISTINCT catalog FROM nsdf.aggregated_catalog' 
